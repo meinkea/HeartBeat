@@ -124,6 +124,7 @@ for i = 1:(length(tm)-1)
     
     % _bar denotes that it came from unscentedTransform
     [ x_bar_xx, P_bar_xx ] =  unscentedTransform(Wm,Wc, Sigmas_f, Q); % Checked
+    [ x_bar_xx, P_bar_xx ] =  unscented_transform(Wm,Wc, Sigmas_f, Q); % Checked
     
     % Recompute NEW sigmas at the new predicted state
     Sigmas_x = computeSigmaPoints(n,lambda,x_bar_xx',P_bar_xx);
