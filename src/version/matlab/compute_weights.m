@@ -1,5 +1,5 @@
 % v 1.0.2
-function  [Wc,Wm]=  computeWeights(n,lambda,alpha,beta)
+function  [Wc,Wm]=  compute_weights(n,lambda,alpha,beta)
 
 Wc = (1/(2*(n + lambda))) * ones(2 * n + 1, 1);
 Wm = (1/(2 * (n + lambda))) * ones(2 * n + 1,1);

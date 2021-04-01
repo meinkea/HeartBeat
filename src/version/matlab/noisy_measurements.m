@@ -1,5 +1,5 @@
 % v 1.0.2
-function [y_true,zP,t] = Noisy_Measurements(func, Vargz, x, t_start, dt, t_end, StaD)
+function [y_true,zP,t] = noisy_measurements(func, Vargz, x, t_start, dt, t_end, StaD)
 %==============================================================
 % Adds Noise to the process model to simulate experimental
 % measurments

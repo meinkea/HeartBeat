@@ -1,5 +1,5 @@
 % v 1.0.2
-function  Sigmas  = stateTransition(func, Vargz, sigmaPoints, t_0, dt, t_1)
+function  Sigmas  = state_transition(func, Vargz, sigmaPoints, t_0, dt, t_1)
   options = odeset('RelTol',1e-5,'Stats','off','OutputFcn',@odeplot);
   prediction_time_points = t_0:dt:t_1;
   

@@ -1,5 +1,5 @@
 % v 1.0.2
-function sigmaPoints = computeSigmaPoints(n, lambda, x, P)
+function sigmaPoints = compute_sigma_points(n, lambda, x, P)
   U = chol((n + lambda)*P);
   %U = U'; % U was wrong transpose version
     

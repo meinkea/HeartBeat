@@ -1,5 +1,5 @@
 % v 1.0.2
-function P = CoverianceUpdate(K, P_bar_xx, P_bar_hh)
+function P = coveriance_update(K, P_bar_xx, P_bar_hh)
 
     tmp = K*P_bar_hh*K';
     P = P_bar_xx - K*P_bar_hh*K';

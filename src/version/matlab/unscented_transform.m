@@ -1,5 +1,5 @@
 % v 1.0.2
-function [x_bar, P_bar] = unscentedTransform(Wm, Wc, Sigmas, P_design)
+function [x_bar, P_bar] = unscented_transform(Wm, Wc, Sigmas, P_design)
   
   x_bar = Wm * Sigmas;
   
