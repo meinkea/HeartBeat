@@ -6,14 +6,30 @@ close all
 %=============================SET Constants================================
 %==========================================================================
 
-addpath(genpath('./')); % import from sub directories
+addpath(genpath('./ukf/')); % import from sub directories (installs the toolkit)
 
 %==============================Plots=======================================
 
 Test_plots = 0; %flag
 
+% ------------------------- Simulation Settings -------------------------
+% These are
+x0_init = [0.0 1.0, 0.0, 1.0]'; % True intial start
+
+meas_variance = 0.5;
+
+% Measurement Time
+tm_start = 0.0; % start time
+tm_end = 100.0; % end time
+dtm = 1.0;      % time between measurements
+
+% UKF prediction Time
+t_last_update = tm(1); % time at last update
+t_prior = tm(1);       % time at prior, this is updated in loop
+dtp = 0.1;             % time per step in sigma predecition projection
+
 %%
-%============================Initialize State==============================
+% ======================= SYSTEM DESIGN from USER =======================
 
 % -- State Vector
 x = [[ 30.0];...
@@ -49,21 +65,7 @@ beta = 2.0;
 kappa = -1; % prolly should be set to n-3, so -1
 
 
-% --- Simulation Settings ---
-% These are
-x0_init = [0.0 1.0, 0.0, 1.0]'; % True intial start
 
-meas_variance = 0.5;
-
-% Measurement Time
-tm_start = 0.0; % start time
-tm_end = 100.0; % end time
-dtm = 1.0;      % time between measurements
-
-% UKF prediction Time
-t_last_update = tm(1); % time at last update
-t_prior = tm(1);       % time at prior, this is updated in loop
-dtp = 0.1;             % time per step in sigma predecition projection
 
 
 
@@ -73,9 +75,6 @@ dtp = 0.1;             % time per step in sigma predecition projection
 %setting seed
 rng('default')
 
-
-
-process_model_function
 
 [x_True, zm_sol, tm] = noisy_measurements(process_model_function, [dtm], x0_init, tm_start, dtm, tm_end, meas_variance);
 
@@ -114,11 +113,9 @@ sol =x;
 for i = 1:(length(tm)-1)
     % --- PREDICT ---
     % Get time for prior ( which is the time of the next measurement )
+    t_prior = tm(i+1); % this needs to be decoupled from sim
     
-    t_prior = tm(i+1);
-    %P
     sigmaPoints = compute_sigma_points(n, lambda, x, P); % Checked
-    % dt = 0.002
     
     % Project sigma points using ODE solver
     Sigmas_f = state_transition(process_model_function, [dtm], sigmaPoints, t_last_update, dtp, t_prior); % Checked
@@ -151,7 +148,7 @@ for i = 1:(length(tm)-1)
     sol = [sol,x];
     
     % update the last update timestamp
-    t_last_update = t_prior;
+    t_last_update = t_prior; % this needs to be decoupled from sim
 end
 
 hold off
