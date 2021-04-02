@@ -1,17 +1,10 @@
 % v 1.0.2
-function [y_true,zP,t] = noisy_measurements(func, Vargz, x, t_start, dt, t_end, StaD)
+function sim_meas = noisy_measurements(true_meas, StaD)
 %==============================================================
-% Adds Noise to the process model to simulate experimental
+% Adds Noise to the true measurements to simulate experimental
 % measurments
 %==============================================================
-  options = odeset('RelTol',1e-5,'Stats','on','OutputFcn',@odeplot);
-  
-  % Time
-  t = t_start:dt:t_end;
-  
-  % True Measurements
-  [t, y_true] = ode45(func, t, x, options, Vargz);
   
   % Pressure Measuments
-  zP = y_true + sqrt(StaD)*randn(size(y_true));
+  sim_meas = true_meas + sqrt(StaD)*randn(size(true_meas));
 end
