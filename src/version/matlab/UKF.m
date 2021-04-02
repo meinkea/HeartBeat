@@ -6,7 +6,7 @@ close all
 %=============================SET Constants================================
 %==========================================================================
 
-
+addpath(genpath('./')); % import from sub directories
 
 %==============================Plots=======================================
 
@@ -15,7 +15,7 @@ Test_plots = 0; %flag
 %%
 %============================Initialize State==============================
 
-% State Vector
+% -- State Vector
 x = [[ 30.0];...
      [-10.0];...
      [ 50.0];...
@@ -42,45 +42,40 @@ state_to_measurment_function = @h_func;
 R = [[0.3^2 0.0  ];...
      [0.0   0.3^2]]; % For X meas only
 
-
-n = length(x);
-
-%number of measured Observations
-nmo = 2;
-
 % --- Sigma Points tuning parameters ---
 
 alpha = 0.3;
 beta = 2.0;
 kappa = -1; % prolly should be set to n-3, so -1
 
-  
 
-%%
-%===============Initial Guess and Parameters for DE solver=================
+% --- Simulation Settings ---
+% These are
+x0_init = [0.0 1.0, 0.0, 1.0]'; % True intial start
+
+meas_variance = 0.5;
+
 % Measurement Time
-
 tm_start = 0.0; % start time
 tm_end = 100.0; % end time
 dtm = 1.0;      % time between measurements
 
+% UKF prediction Time
+t_last_update = tm(1); % time at last update
+t_prior = tm(1);       % time at prior, this is updated in loop
+dtp = 0.1;             % time per step in sigma predecition projection
 
-%R = 0.005;
-% Noise from process model
-%Qp = 0;
-%Q = [[0.02  0.01];...
-%     [0.01  0.02]];
-Q = [[0.02  0.01  0.00  0.00];...
-     [0.01  0.02  0.00  0.00];...
-     [0.00  0.00  0.02  0.01];...
-     [0.00  0.00  0.01  0.02]];
+
+
+%%
 %==============Making Measuments and comparing to True funtion=============
 
 %setting seed
 rng('default')
 
-x0_init = [0.0 1.0, 0.0, 1.0]'; % True intial start
-meas_variance = 0.5;
+
+
+process_model_function
 
 [x_True, zm_sol, tm] = noisy_measurements(process_model_function, [dtm], x0_init, tm_start, dtm, tm_end, meas_variance);
 
@@ -100,16 +95,21 @@ end
 
 %==========================Initialize Matrices=============================
 
+% number of state vectors
+n = length(x);
+
+% number of measured observations
+nmo = length(R);
+
 [sigmaPoints,weights,lambda,P_bar_xx,P_bar_hh] = initialize(n,alpha,kappa,nmo); % this should be broken up
 sol =x;
 
-% UKF prediction Time
-t_last_update = tm(1); % time at last update
-t_prior = tm(1);       % time at prior, this is updated in loop
-dtp = 0.1;             % time per step in sigma predecition projection
 
 
-[Wc,Wm] =  compute_weights(n,lambda,alpha,beta); % this never changes, moved before loop
+
+% These are the weigths used in the uncented transform
+% They are static and never change
+[Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
 
 for i = 1:(length(tm)-1)
     % --- PREDICT ---
