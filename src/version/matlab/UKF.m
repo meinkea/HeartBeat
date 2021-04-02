@@ -8,6 +8,9 @@ close all
 
 addpath(genpath('./ukf/')); % import from sub directories (installs the toolkit)
 
+addpath('./simulation/');
+addpath('./user_design/');
+
 %==============================Plots=======================================
 
 Test_plots = 0; %flag
@@ -24,9 +27,10 @@ tm_end = 100.0; % end time
 dtm = 1.0;      % time between measurements
 
 % UKF prediction Time
-t_last_update = tm(1); % time at last update
-t_prior = tm(1);       % time at prior, this is updated in loop
+t_last_update = tm_start; % time at last update
+t_prior = 0.0;       % time at prior, this is updated in loop
 dtp = 0.1;             % time per step in sigma predecition projection
+
 
 %%
 % ======================= SYSTEM DESIGN from USER =======================
