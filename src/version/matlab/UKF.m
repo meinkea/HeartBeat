@@ -1,4 +1,4 @@
-% v 1.1.0
+% v 1.5.0
 
 clear all
 close all
@@ -26,15 +26,17 @@ x0_init = 80/c;
 
 meas_variance = 0.5;
 
+Cylces = 3;
+
 % Measurement Time
-t_sim_start = 0.0;           % start time
-t_sim_end = 3 * 0.8;           % end time
-dt_sim = 1/500;                % time between measurements
+t_sim_start = 0.0;         % start time
+t_sim_end = Cylces * 0.8;  % end time
+dt_sim = 1/500;            % time between measurements
 
 % UKF prediction Time
 t_last_update = t_sim_start; % time at last update
-t_prior = 0.0;            % time at prior, this is updated in loop
-dtp = dt_sim*0.01;                % time per step in sigma predecition projection
+t_prior = 0.0;               % time at prior, this is updated in loop
+dtp = dt_sim*0.01;           % time per step in sigma predecition projection
 
 % -------------------------------- Sim --------------------------------
 
@@ -49,12 +51,15 @@ Q_dt = 1e-4;
 
 cycles_to_skip = 4;
 
-true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt]; % additional arguments for hemo_pressure (alias of pressure_function)
+% additional arguments for hemo_pressure (alias of pressure_function)
+true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt];
+
+% Generate true states
 [true_pressure_state, true_time_stamp] = true_hemodynamic_state(@pressure_function,  x0_init,  t_sim_start, dt_sim, t_sim_end,  true_hemodynamic_state_argz, cycles_to_skip);
 
-
+% Generate true measurements.  Returns also the new time series that accounts
 [tm_true_stamp, true_measurement] = true_hemodynamic_measurement(@hemodynamic_state_to_measurement, true_pressure_state, true_time_stamp);
-6
+
 zm = noisy_measurements(true_measurement, meas_variance);
 
 tm = tm_true_stamp;
@@ -63,16 +68,16 @@ tm = tm_true_stamp;
 %%
 % ======================= SYSTEM DESIGN from USER =======================
 Pref  = 50;      %mmHg
-Cref  = (2e-5);    
+Cref  = (2e-5);  
 Rcref = 1500;
 Rdref = 15000;
 
 
 % -- State Vector
-x = [[              80/c];...
-     [   log2(500/Rcref)];...
-     [log2(0.00065/Cref)];...
-     [ log2(25000/Rdref)]];
+x = [[               80/c ];...
+     [    log2(500/Rcref) ];...
+     [ log2(0.00065/Cref) ];...
+     [  log2(25000/Rdref) ]];
 
 % State Estimator variance
 P = [[ 8.0  0.0  0.0  0.0];...
@@ -97,6 +102,7 @@ state_transition_Vargz = [0.0 0.0 0.0 cycle_time Q_dt];
 
 
 R = [0.005]; % For X meas only
+
 
 % --- Sigma Points tuning parameters ---
 
@@ -199,9 +205,9 @@ end
 
 % some plotting
 hold off
-plot(zm_sol(:,1), zm_sol(:,3) ,'o','LineWidth',3)
+plot(tm, zm(:,1) ,'o','LineWidth',3)
 hold on
-plot(sol(1,:)', sol(3,:) ,'-','LineWidth',4)
+plot(tm, sol(:) ,'-','LineWidth',4)
 
 
 
