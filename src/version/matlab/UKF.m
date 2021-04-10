@@ -14,7 +14,7 @@ addpath('./user_design/hemodynamic/');
 
 %==============================Plots=======================================
 
-Test_plots = 0; %flag
+Test_plots = 1; %flag
 
 %%
 %============================== SIMULATION ==============================
@@ -24,7 +24,7 @@ Test_plots = 0; %flag
 c = 0.000750061683; % unit conversion 1 dyn/cm^2=0.0007750061 mmHg
 x0_init = 80/c;
 
-meas_variance = 0.5;
+meas_variance = 0.5;%*10000000;
 
 Cylces = 3;
 
@@ -44,7 +44,7 @@ dtp = dt_sim*0.01;           % time per step in sigma predecition projection
 
 Rc_true = 1600;  % Silly
 Rd_true = 13000; %
-C_true = 2.5e-5; %
+C_true = 0.000025; %
 
 cycle_time = 0.8;
 Q_dt = 1e-4;
@@ -67,17 +67,22 @@ tm = tm_true_stamp;
 
 %%
 % ======================= SYSTEM DESIGN from USER =======================
-Pref  = 50;      %mmHg
-Cref  = (2e-5);  
-Rcref = 1500;
-Rdref = 15000;
+Pref  = 80/c;      %mmHg
+Rcref = 1600;
+Rdref = 13000;
+Cref  = 0.000025;
 
 
 % -- State Vector
-x = [[               80/c ];...
-     [    log2(500/Rcref) ];...
-     [ log2(0.00065/Cref) ];...
-     [  log2(25000/Rdref) ]];
+%x = [[               80/c ];...
+%     [    log2(500/Rcref) ];...
+%     [ log2(0.00065/Cref) ];...
+%     [  log2(25000/Rdref) ]];
+
+x = [[  80/c ];...
+     [ Rcref ];...
+     [ Rdref ];...
+     [ Cref  ]];
 
 % State Estimator variance
 P = [[ 8.0  0.0  0.0  0.0];...
@@ -89,10 +94,18 @@ P = [[ 8.0  0.0  0.0  0.0];...
 process_model_function = @pressure_function;
 
 dt = dtp;
-Q = ([[(dt^7)/100, (dt^6)/60, (dt^5)/20, (dt^4)/8];...
-      [(dt^6)/60,  (dt^5)/20, (dt^4)/8,  (dt^3)/6];...
-      [(dt^5)/20,  (dt^4)*8,  (dt^3)/3,  (dt^2)/2];...
-      [(dt^4)/8,   (dt^3)/6,  (dt^2)/2,  (dt^1)]]);
+
+a_ = 0.0001;
+f_ = 0.01;
+Q = ([[  a_,   0.0,   0.0,   0.0];...
+      [ 0.0, f_*a_,   0.0,   0.0];...
+      [ 0.0,   0.0, f_*a_,   0.0];...
+      [ 0.0,   0.0,   0.0,  f_*a_]]);
+
+%Q = ([[(dt^7)/100, (dt^6)/60, (dt^5)/20, (dt^4)/8];...
+%      [(dt^6)/60,  (dt^5)/20, (dt^4)/8,  (dt^3)/6];...
+%      [(dt^5)/20,  (dt^4)*8,  (dt^3)/3,  (dt^2)/2];...
+%      [(dt^4)/8,   (dt^3)/6,  (dt^2)/2,  (dt^1)]]);
 
 % State Function Model for State Estimator
 state_to_measurment_function = @hemodynamic_state_to_measurement;
@@ -122,13 +135,14 @@ rng('default')
 
 if Test_plots == 1
     figure
-    plot(x_True(1),x_True(3),'o')
+    %plot(x_True(1),x_True(3),'o')
     hold on
     %plot(y_True, x_True, 'k', 'LineWidth', 3)
-    plot(zm(:,1),zm(:,2), 'k', 'LineWidth', 3)
+    plot(tm, zm, 'k', 'LineWidth', 3)
     grid on
     xlabel('Time (s)')
     ylabel('Pressure (log world)')
+    shg
 end
 
 
@@ -149,23 +163,32 @@ sol =x;
 % They are static and never change
 [Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
 
+tic
+
 for i = 1:(length(tm)-1)
     % --- PREDICT ---
     % Get time for prior ( which is the time of the next measurement )
     t_prior = tm(i+1); % this needs to be decoupled from sim
     
+    
     sigmaPoints = compute_sigma_points(n, lambda, x, P); % Checked
-    
-    
+    %disp('sigmaPoints')
+    %toc
+
     % Project sigma points using ODE solver
     Sigmas_f = state_transition(process_model_function, state_transition_Vargz, sigmaPoints, t_last_update, dtp, t_prior); % Checked
+    %disp('state_transition')
+    %toc
     
     % _bar denotes that it came from unscentedTransform
     [ x_bar_xx, P_bar_xx ] =  unscented_transform(Wm,Wc, Sigmas_f, Q); % Checked
+    %disp('unscented_transform')
+    %toc
     
     % Recompute NEW sigmas at the new predicted state
     Sigmas_x = compute_sigma_points(n,lambda,x_bar_xx',P_bar_xx);
-    
+    %disp('compute_sigma_points')
+    %toc
     % --- UPDATE ---
     
     % _h denotes measurement version of prediction
@@ -196,18 +219,28 @@ for i = 1:(length(tm)-1)
     x = state_update(x_bar_xx,K,y); % wrong Sigmas where going in here!!!
     
     
-    sol = [sol,x];
+    sol = [sol, x];
     
     % update the last update timestamp
     t_last_update = t_prior; % this needs to be decoupled from sim
 end
 
+toc
 
 % some plotting
 hold off
-plot(tm, zm(:,1) ,'o','LineWidth',3)
+subplot(2,2,1)
+plot(tm, zm(1,:) ,'o','LineWidth',1)
 hold on
-plot(tm, sol(:) ,'-','LineWidth',4)
+plot(tm, sol(1,:) ,'-','LineWidth',2)
 
+subplot(2,2,2)
+plot(tm, sol(2,:) ,'-','LineWidth',2)
+
+subplot(2,2,3)
+plot(tm, sol(3,:) ,'-','LineWidth',2)
+
+subplot(2,2,4)
+plot(tm, sol(4,:) ,'-','LineWidth',2)
 
 
