@@ -7,8 +7,8 @@ function  Sigmas  = state_transition(func, Vargz, sigmaPoints, t_0, dt, t_1)
   parfor i = 1:size(sigmaPoints,1)
     % For 'pesudo states' for the parameter estimates
     
-    [~, res] = ode45(func, prediction_time_points, sigmaPoints(i,:)', options, [sigmaPoints(i,2), sigmaPoints(i,3) sigmaPoints(i,4) Vargz(4) Vargz(5)]);
-    Sigmas(i,:) = res(end,:)';
+    [~, res] = ode23s(func, prediction_time_points, sigmaPoints(i,1), options, [sigmaPoints(i,2) sigmaPoints(i,3) sigmaPoints(i,4) Vargz(4) Vargz(5)]);
+    Sigmas(i,:) = [res(end) sigmaPoints(i,2) sigmaPoints(i,3) sigmaPoints(i,4)];
   end
   %Sigmas = sigmaPoints;
 end
