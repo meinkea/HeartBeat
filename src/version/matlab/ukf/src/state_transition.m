@@ -19,7 +19,10 @@ function  Sigmas  = state_transition(func, Vargz, sigmaPoints, state_types, t_0,
     % For 'pesudo states' for the parameter estimates
 
     [~, res] = ode23s(func, prediction_time_points, sigmaPoints(i,state_index)', options, [sigmaPoints(i,parameter_index) Vargz]);
-    Sigmas(i,:) = [res(end) sigmaPoints(i,parameter_index)];
+    Sigmas(i,:) = [res(end, 1:length(res(state_index,end))) sigmaPoints(i,parameter_index)];
+    % The code "[res(end, 1:length(res(state_index,end)))" accomidates pulling multiple state variable forcast from ODE solver
+    %   'end' gets the final results (the row) of states, for the forcast
+    %   '1:length(res(state_index,end)))' pulls the row out (1 to num of forcasted state variable
   end
   %Sigmas = sigmaPoints;
 end
