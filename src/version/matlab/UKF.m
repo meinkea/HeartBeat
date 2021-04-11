@@ -36,7 +36,7 @@ dt_sim = 1/500;            % time between measurements
 % UKF prediction Time
 t_last_update = t_sim_start; % time at last update
 t_prior = 0.0;               % time at prior, this is updated in loop
-dtp = dt_sim*0.01;           % time per step in sigma predecition projection
+dtp = 0;           % time per step in sigma predecition projection
 
 % -------------------------------- Sim --------------------------------
 
@@ -74,47 +74,37 @@ Cref  = 0.000025;
 
 
 % -- State Vector
-%x = [[               80/c ];...
-%     [    log2(500/Rcref) ];...
-%     [ log2(0.00065/Cref) ];...
-%     [  log2(25000/Rdref) ]];
-
-x = [[  80/c ];...
-     [ Rcref ];...
-     [ Rdref ];...
-     [ Cref  ]];
+x_user = { 80/c  'state'    ;...
+           Rcref 'parameter';...
+           Rdref 'parameter';...
+           Cref  'parameter'};
 
 % State Estimator variance
-P = [[ 8.0  0.0  0.0  0.0];...
-     [ 0.0  8.0  0.0  0.0];...
-     [ 0.0  0.0  8.0  0.0];...
-     [ 0.0  0.0  0.0  8.0]];
-   
+P_user = [[ 8.0  0.0  0.0  0.0];...
+          [ 0.0  8.0  0.0  0.0];...
+          [ 0.0  0.0  8.0  0.0];...
+          [ 0.0  0.0  0.0  8.0]];
+  
 % Process Model Variance and Covariance Matrix
-process_model_function = @pressure_function;
+process_model_function_user = @pressure_function;
 
-dt = dtp;
+dt_user = dtp;
 
 a_ = 0.0001;
 f_ = 0.01;
-Q = ([[  a_,   0.0,   0.0,   0.0];...
-      [ 0.0, f_*a_,   0.0,   0.0];...
-      [ 0.0,   0.0, f_*a_,   0.0];...
-      [ 0.0,   0.0,   0.0,  f_*a_]]);
-
-%Q = ([[(dt^7)/100, (dt^6)/60, (dt^5)/20, (dt^4)/8];...
-%      [(dt^6)/60,  (dt^5)/20, (dt^4)/8,  (dt^3)/6];...
-%      [(dt^5)/20,  (dt^4)*8,  (dt^3)/3,  (dt^2)/2];...
-%      [(dt^4)/8,   (dt^3)/6,  (dt^2)/2,  (dt^1)]]);
+Q_user = ([[  a_,   0.0,   0.0,   0.0];...
+           [ 0.0, f_*a_,   0.0,   0.0];...
+           [ 0.0,   0.0, f_*a_,   0.0];...
+           [ 0.0,   0.0,   0.0,  f_*a_]]);
 
 % State Function Model for State Estimator
 state_to_measurment_function = @hemodynamic_state_to_measurement;
 
 % State Function Model parameters (vargz for state_transition())
-state_transition_Vargz = [0.0 0.0 0.0 cycle_time Q_dt];
+state_transition_Vargz = [cycle_time Q_dt];
 
 
-R = [0.005]; % For X meas only
+R_user = [0.005]; % For X meas only
 
 
 % --- Sigma Points tuning parameters ---
@@ -147,15 +137,23 @@ end
 
 
 %==========================Initialize Matrices=============================
+x = [x_user{:,1}]';
+x_types = {x_user{:,2}};
+P = P_user;
+Q = Q_user;
+R = R_user;
+
+process_model_function = process_model_function_user;
+
 
 % number of state vectors
-n = length(x);
+n = length( x );
 
 % number of measured observations
 nmo = length(R);
 
 [sigmaPoints,weights,lambda,P_bar_xx,P_bar_hh] = initialize(n,alpha,kappa,nmo); % this should be broken up
-sol =x;
+sol = x;
 
 
 
@@ -163,39 +161,50 @@ sol =x;
 % They are static and never change
 [Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
 
-tic
+
+
+% for compa
+
 
 for i = 1:(length(tm)-1)
+    tic
     % --- PREDICT ---
     % Get time for prior ( which is the time of the next measurement )
     t_prior = tm(i+1); % this needs to be decoupled from sim
     
     
     sigmaPoints = compute_sigma_points(n, lambda, x, P); % Checked
-    %disp('sigmaPoints')
-    %toc
+    disp('sigmaPoints')
+    toc
 
+    tic
     % Project sigma points using ODE solver
-    Sigmas_f = state_transition(process_model_function, state_transition_Vargz, sigmaPoints, t_last_update, dtp, t_prior); % Checked
-    %disp('state_transition')
-    %toc
+    Sigmas_f = state_transition(process_model_function, state_transition_Vargz, sigmaPoints, x_types, t_last_update, dtp, t_prior); % Checked
+    disp('state_transition')
+    toc
     
+    tic
     % _bar denotes that it came from unscentedTransform
     [ x_bar_xx, P_bar_xx ] =  unscented_transform(Wm,Wc, Sigmas_f, Q); % Checked
     %disp('unscented_transform')
     %toc
     
+    tic
     % Recompute NEW sigmas at the new predicted state
     Sigmas_x = compute_sigma_points(n,lambda,x_bar_xx',P_bar_xx);
     %disp('compute_sigma_points')
     %toc
     % --- UPDATE ---
     
+    tic
     % _h denotes measurement version of prediction
     %Sigmas_h = state_to_measurment(hemodynamic_state_to_measurement, Sigmas_x, 0);
     Sigmas_h = hemodynamic_state_to_measurement(Sigmas_x,  0.0);
     Sigmas_h = Sigmas_h';
+    disp('hemodynamic_state_to_measurement')
+    toc
     
+    tic
     % computeMeasurementMeanAndCovariance_Pz is just a redundant copy of unscentedTransform
     [x_bar_hh, P_bar_hh] = unscented_transform(Wm,Wc, Sigmas_h, R);
     
@@ -223,24 +232,28 @@ for i = 1:(length(tm)-1)
     
     % update the last update timestamp
     t_last_update = t_prior; % this needs to be decoupled from sim
+    disp('last calcs')
+    toc
 end
 
 toc
 
 % some plotting
 hold off
-subplot(2,2,1)
+subplot(2,3,1)
 plot(tm, zm(1,:) ,'o','LineWidth',1)
 hold on
 plot(tm, sol(1,:) ,'-','LineWidth',2)
 
-subplot(2,2,2)
+subplot(2,3,2)
 plot(tm, sol(2,:) ,'-','LineWidth',2)
 
-subplot(2,2,3)
+subplot(2,3,3)
 plot(tm, sol(3,:) ,'-','LineWidth',2)
 
-subplot(2,2,4)
+subplot(2,3,4)
 plot(tm, sol(4,:) ,'-','LineWidth',2)
 
-
+[res_sys_time, res_sys_state] = true_hemodynamic_state(@pressure_function,  x0_init,  t_sim_start, dt_sim, 10 * 0.8,  [sol(2,end), sol(3,end), sol(4,end), cycle_time, Q_dt], 0)
+subplot(2,3,5)
+plot(res_sys_time, res_sys_state ,'-','LineWidth',2)
