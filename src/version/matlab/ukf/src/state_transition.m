@@ -1,14 +1,25 @@
 % v 1.0.2
-function  Sigmas  = state_transition(func, Vargz, sigmaPoints, t_0, dt, t_1)
+function  Sigmas  = state_transition(func, Vargz, sigmaPoints, state_types, t_0, dt, t_1)
   options = odeset('RelTol',1e-5,'Stats','off','OutputFcn',@odeplot);
-  prediction_time_points = t_0:dt:t_1;
+  
+  if dt == 0
+    prediction_time_points = [t_0 t_1];
+  else
+    prediction_time_points = t_0:dt:t_1;
+  end
+  
+  % Get indexes
+  state_index = find(strcmp(state_types, 'state') ==1);              % gets index of states
+  parameter_index = find(strcmp(state_types, 'parameter') ==1);      % gets index of parameters
+  constraint_index = find(strcmp(state_types, 'constraint') ==1);    % gets index of constraints
+  
   
   Sigmas = zeros(size(sigmaPoints));
   parfor i = 1:size(sigmaPoints,1)
     % For 'pesudo states' for the parameter estimates
-    
-    [~, res] = ode23s(func, prediction_time_points, sigmaPoints(i,1), options, [sigmaPoints(i,2) sigmaPoints(i,3) sigmaPoints(i,4) Vargz(4) Vargz(5)]);
-    Sigmas(i,:) = [res(end) sigmaPoints(i,2) sigmaPoints(i,3) sigmaPoints(i,4)];
+
+    [~, res] = ode23s(func, prediction_time_points, sigmaPoints(i,state_index)', options, [sigmaPoints(i,parameter_index) Vargz]);
+    Sigmas(i,:) = [res(end) sigmaPoints(i,parameter_index)];
   end
   %Sigmas = sigmaPoints;
 end
