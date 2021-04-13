@@ -69,16 +69,18 @@ profiling_flag = 0;
 % Measurement Time
 
 t_sim_start = 0.0;         % start time
-t_sim_end = 4.0;  % end time
+t_sim_end = 100.0;  % end time
 dt_sim = 0.01;            % time between measurements
 
 tm = t_sim_start:dt_sim:t_sim_end;
-x_init = [1 2]
+x_init = [1 2];
 
 true_meas(1,:) = (3*sin(2*tm)+3*cos(2*tm)-1)/2;
-true_meas(2,:) = 3*cos(2*tm)-1;
+true_meas(2,:) =  3*cos(2*tm)-1;
 
-zm = noisy_measurements(true_meas, 0.0);
+zm = noisy_measurements(true_meas, 0.005);
+
+tic_step = 0;
 
 
 %%
@@ -138,14 +140,14 @@ zm = noisy_measurements(true_meas, 0.0);
 
 
 % -- State Vector
-x_user = {1.0 'state';...
-          2.0 'state';...
-          1.0 'parameter'};
+x_user = {  175.0 'state';...
+            -32.0 'state';...
+           -300.0 'parameter'};
         
 % -- State Estimator Variance and Covariance Matrix
-P_user = [[ 0.001  0.0     0.0        ];...
-          [ 0.0    0.001  0.0        ];...
-          [ 0.0    0.0     0.00000001]];...
+P_user = [[ 10000.0      0.0      0.0 ];...
+          [     0.0  10000.0      0.0 ];...
+          [     0.0      0.0  20000.0 ]];...
 
 % -- Process model
 process_model_function_user = @linear_with_parameter_sys;
@@ -156,16 +158,24 @@ t_prior = 0.0;               % time at prior, this is updated in loop
 dtp = 0;                     % time per step in sigma predecition projection
 
 % -- Process Model Variance and Covariance Matrix
-Q_user = [[ 1.0  0.0   0.0   ];...
-          [ 0.0   1.0  0.0   ];...
-          [ 0.0   0.0   0.001 ]];...
+Q_user = [[ 0.0001  0.0     0.0     ];...
+          [ 0.0     0.0001  0.0     ];...
+          [ 0.0     0.0     0.0001 ]];...
 
 % State Function Model parameters (vargz for state_transition())
 state_transition_Vargz = [0.0];
 
+
+% -- Measurement function
+get_measurement_user = @linear_with_parameter__get_measurement;
+
+get_measurement_vargz = {tm zm x_user{3,1}};
+
+
 % -- Measurement Variance and Covariance Matrix
-R_user = [[0.01 0.00];...
-          [0.00 0.01]]*0.00001;
+R_user = [[0.1  0.00 0.00];...
+          [0.00 0.1  0.00];...
+          [0.00 0.00 0.01]];
 
 
 % --- Sigma Points tuning parameters ---
@@ -218,7 +228,7 @@ sol = x;
 % They are static and never change
 [Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
 
-
+param_mes = [];
 
 % for compa
 
@@ -297,9 +307,12 @@ for i = 1:(length(tm)-1)
     % This is where the magic happens ;)
     K = compute_kalman_gain(P_bar_xh, P_bar_hh);
     
+    % Get measurement for user defined measurement function
+    meas = get_measurement_user(t_prior, x_bar_hh, sol, get_measurement_vargz);
+    
     % difference between the actual measurement and where the projected
     % state thinks what the measurement should have been
-    y = residual_y(zm(i), x_bar_hh);
+    y = residual_y(meas, x_bar_hh);
     
     % Uses the Kalman gain to adjust the system's covariance matrix
     %   This tells you the accuracy of the states
@@ -309,7 +322,7 @@ for i = 1:(length(tm)-1)
     %   This will be someplace between the uncented transform's project
     %   state and the measurement state
     x = state_update(x_bar_xx,K,y); % wrong Sigmas where going in here!!!
-    x(3) = 1.0;
+    
     
     sol = [sol, x];
     
@@ -319,6 +332,32 @@ for i = 1:(length(tm)-1)
       disp('last calcs')
       toc
     end
+    
+    param_mes = [param_mes, meas(3)];
+    
+    % periodic plotting
+    if tic_step < tm(i)
+      % some plotting
+      state_index = find(strcmp(x_types, 'state') ==1);              % gets index of states
+      parameter_index = find(strcmp(x_types, 'parameter') ==1);      % gets index of parameters
+      constraint_index = find(strcmp(x_types, 'constraint') ==1);    % gets index of constraints
+      
+      hold off
+      subplot(1,2,1)
+      plot(tm(1:length(zm(state_index,:))), zm(state_index,:) ,'o','LineWidth',1)
+      hold on
+      plot(tm(1:length(sol(state_index,:))), sol(state_index,:) ,'-','LineWidth',2)
+      
+      subplot(1,2,2)
+      plot(tm(1:length(param_mes([1],:))), param_mes([1],:) ,'o','LineWidth',1)
+      
+      plot(tm(1:length(sol(parameter_index,:))), sol(parameter_index,:) ,'-','LineWidth',2)
+      
+      tic_step = tic_step + 1;
+      
+      pause(1)
+    end
+  java.lang.Thread.sleep(0.001*1000)
 end
 
 
@@ -330,14 +369,14 @@ constraint_index = find(strcmp(x_types, 'constraint') ==1);    % gets index of c
 
 
 hold off
-subplot(1,3,1)
-plot(tm, zm(state_index,:) ,'o','LineWidth',1)
+subplot(1,2,1)
+plot(tm(1:length(zm(state_index,:))), zm(state_index,:) ,'o','LineWidth',1)
 hold on
-plot(tm, sol(state_index,:) ,'-','LineWidth',2)
+plot(tm(1:length(sol(state_index,:))), sol(state_index,:) ,'-','LineWidth',2)
 
-subplot(1,3,2)
-plot(tm, sol(parameter_index,:) ,'-','LineWidth',2)
+subplot(1,2,2)
+plot(tm(1:length(sol(parameter_index,:))), sol(parameter_index,:) ,'-','LineWidth',2)
 
-subplot(1,3,3)
-[res_sys_state, res_sys_time] = true_hemodynamic_state(process_model_function_user,  x0_init,  t_sim_start, dt_sim, 10 * 0.8,  [sol(2,end), sol(3,end), sol(4,end), cycle_time, Q_dt], 0)
-plot(res_sys_time, res_sys_state(:,1)','-','LineWidth',2)
+%subplot(1,3,3)
+%[res_sys_state, res_sys_time] = true_hemodynamic_state(process_model_function_user,  x0_init,  t_sim_start, dt_sim, t_sim_end,  , 0)
+%plot(res_sys_time, res_sys_state(:,1)','-','LineWidth',2)
