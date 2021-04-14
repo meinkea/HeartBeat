@@ -68,9 +68,9 @@ profiling_flag = 0;
 
 % Measurement Time
 
-t_sim_start = 0.0;         % start time
-t_sim_end = 100.0;  % end time
-dt_sim = 0.01;            % time between measurements
+t_sim_start =  0.00;  % start time
+t_sim_end   = 14.00;  % end time
+dt_sim      =  0.01;  % time between measurements
 
 tm = t_sim_start:dt_sim:t_sim_end;
 x_init = [1 2];
@@ -140,14 +140,15 @@ tic_step = 0;
 
 
 % -- State Vector
-x_user = {  175.0 'state';...
-            -32.0 'state';...
+x_user = {  zm(1) 'state';...
+            zm(2) 'state';...
            -300.0 'parameter'};
         
 % -- State Estimator Variance and Covariance Matrix
-P_user = [[ 10000.0      0.0      0.0 ];...
-          [     0.0  10000.0      0.0 ];...
-          [     0.0      0.0  20000.0 ]];...
+P_user = [[ 10000.0      0.0      0.0      0.0 ];...
+          [     0.0  10000.0      0.0      0.0 ];...
+          [     0.0      0.0  20000.0      0.0 ] 
+          [     0.0      0.0      0.0  20000.0 ]];...
 
 % -- Process model
 process_model_function_user = @linear_with_parameter_sys;
@@ -158,9 +159,10 @@ t_prior = 0.0;               % time at prior, this is updated in loop
 dtp = 0;                     % time per step in sigma predecition projection
 
 % -- Process Model Variance and Covariance Matrix
-Q_user = [[ 0.0001  0.0     0.0     ];...
-          [ 0.0     0.0001  0.0     ];...
-          [ 0.0     0.0     0.0001 ]];...
+Q_user = [[ 0.0001   0.0      0.0      ];...
+          [ 0.0      0.0001   0.0      ];...
+          [ 0.0      0.0      0.001    ];...
+          [ 0.0      0.0      0.0      ]];
 
 % State Function Model parameters (vargz for state_transition())
 state_transition_Vargz = [0.0];
@@ -229,6 +231,7 @@ sol = x;
 [Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
 
 param_mes = [];
+sol_K = [];
 
 % for compa
 
@@ -252,6 +255,11 @@ for i = 1:(length(tm)-1)
       tic
     end
     % Project sigma points using ODE solver
+    % The state_transition function can take and state equation function making the code general
+    %
+    % process_model_function - handle for the state equation function
+    %                          must have the form: myStateEquFunction(t, y, argvz)
+    % sigmaPoints - this it the intial sigma points
     Sigmas_f = state_transition(process_model_function, state_transition_Vargz, sigmaPoints, x_types, t_last_update, dtp, t_prior); % Checked
     if profiling_flag == 1
       disp('state_transition')
@@ -307,6 +315,8 @@ for i = 1:(length(tm)-1)
     % This is where the magic happens ;)
     K = compute_kalman_gain(P_bar_xh, P_bar_hh);
     
+    sol_K = [sol_K, K];
+    
     % Get measurement for user defined measurement function
     meas = get_measurement_user(t_prior, x_bar_hh, sol, get_measurement_vargz);
     
@@ -335,6 +345,9 @@ for i = 1:(length(tm)-1)
     
     param_mes = [param_mes, meas(3)];
     
+    
+    % This is additional user defined functionality
+    
     % periodic plotting
     if tic_step < tm(i)
       % some plotting
@@ -356,10 +369,30 @@ for i = 1:(length(tm)-1)
       tic_step = tic_step + 1;
       
       pause(1)
+      if (tic_step == 3)
+        Q = [[ 0.0001    0.0       0.0       ];...
+             [ 0.0       0.0001    0.0       ];...
+             [ 0.0       0.0       0.000001  ]];
+      elseif (tic_step == 6)
+        Q = [[ 0.0001    0.0       0.0        ];...
+             [ 0.0       0.0001    0.0        ];...
+             [ 0.0       0.0       0.0000001  ]];
+      elseif (tic_step == 9)
+        Q = [[ 0.00001   0.0       0.0        ];...
+             [ 0.0       0.00001   0.0        ];...
+             [ 0.0       0.0       0.0000001  ]];
+      elseif (tic_step == 9)
+        Q = [[ 0.000001  0.0       0.0        ];...
+             [ 0.0       0.000001  0.0        ];...
+             [ 0.0       0.0       0.0000001  ]];
+      elseif (tic_step == 12)
+        Q = [[ 0.000001  0.0       0.0        ];...
+             [ 0.0       0.000001  0.0        ];...
+             [ 0.0       0.0       0.00000001 ]];
+      end
     end
-  java.lang.Thread.sleep(0.001*1000)
+  %java.lang.Thread.sleep(0.001*1000)
 end
-
 
 
 % some plotting
