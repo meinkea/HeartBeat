@@ -25,8 +25,6 @@ true_meas(2,:) =  3*cos(2*tm)-1;
 % -- Noisy Measurements
 zm = noisy_measurements(true_meas, 0.005);
 
-tic_step = 0;
-
 
 % ============================ USER UKF DESIGN ============================
 
@@ -46,7 +44,7 @@ P_user = [[ 10000.0      0.0      0.0 ];...
 % PROCESS DESIGN
 
 % -- Process Model
-process_model_function_user = @linear_with_parameter_sys;
+process_model_function__user = @linear_with_parameter__process_model;
 
 
 % -- Process Model Forcast Time
@@ -60,15 +58,15 @@ Q_user = [[ 0.0001   0.0      0.0  ];...
           [ 0.0      0.0      0.001]];
 
 % -- State Function Model parameters (vargz for state_transition())
-state_transition_Vargz = [0];
+state_transition__vargz = [0];
 
 
 % MEASUREMENT DESIGN
 
 % -- Measurement function
-get_measurement_user = @linear_with_parameter__get_measurement;
+get_measurement__user = @linear_with_parameter__get_measurement;
 
-get_measurement_vargz = {tm zm x_user{3,1}};
+get_measurement__vargz = {tm zm x_user{3,1}};
 
 % -- Measurement Variance and Covariance Matrix
 R_user = [[0.1  0.00 0.00];...
@@ -76,8 +74,8 @@ R_user = [[0.1  0.00 0.00];...
           [0.00 0.00 0.01]];
 
 % -- State to Measurement function
-meas_to_state_user = @linear_with_parameter_meas_to_state;
-meas_to_state_vargz = [0];
+meas_to_state__user = @linear_with_parameter__meas_to_state;
+meas_to_state__vargz = [0];
 
 
 % UKF PARAMETER DESIGN

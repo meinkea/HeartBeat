@@ -41,8 +41,6 @@ true_meas(2,:) =  3*cos(2*tm)-1;
 % -- Noisy Measurements
 zm = noisy_measurements(true_meas, 0.005);
 
-tic_step = 0;
-
 
 % ============================ USER UKF DESIGN ============================
 
@@ -62,7 +60,7 @@ P_user = [[ 10000.0      0.0      0.0 ];...
 % PROCESS DESIGN
 
 % -- Process Model
-process_model_function_user = @linear_with_parameter_sys;
+process_model_function__user = @linear_with_parameter__process_model;
 
 
 % -- Process Model Forcast Time
@@ -76,15 +74,15 @@ Q_user = [[ 0.0001   0.0      0.0  ];...
           [ 0.0      0.0      0.001]];
 
 % -- State Function Model parameters (vargz for state_transition())
-state_transition_Vargz = [0];
+state_transition__vargz = [0];
 
 
 % MEASUREMENT DESIGN
 
 % -- Measurement function
-get_measurement_user = @linear_with_parameter__get_measurement;
+get_measurement__user = @linear_with_parameter__get_measurement;
 
-get_measurement_vargz = {tm zm x_user{3,1}};
+get_measurement__vargz = {tm zm x_user{3,1}};
 
 % -- Measurement Variance and Covariance Matrix
 R_user = [[0.1  0.00 0.00];...
@@ -92,8 +90,8 @@ R_user = [[0.1  0.00 0.00];...
           [0.00 0.00 0.01]];
 
 % -- State to Measurement function
-meas_to_state_user = @linear_with_parameter__meas_to_state;
-meas_to_state_vargz = [0];
+meas_to_state__user = @linear_with_parameter__meas_to_state;
+meas_to_state__vargz = [0];
 
 
 % UKF PARAMETER DESIGN
@@ -121,7 +119,7 @@ P = P_user;
 Q = Q_user;
 R = R_user;
 
-process_model_function = process_model_function_user;
+process_model_function = process_model_function__user;
 
 
 % number of state vectors
@@ -143,8 +141,11 @@ param_mes = [];
 sol_K = [];
 
 
+tic_step__periodic_plotting = 0;
+tic_step__dynamic_uncertainty = 0;
 
 
+disp('  ');
 disp('    $$$$$$      $$$$$ ');
 disp('  $$$$$$$$$$  $$$$$$$$$ ');
 disp(' $$$$$$$$$$$$$$$$$$$$$$$$ ');
@@ -173,6 +174,7 @@ disp('               $$$$$ ');
 disp('              $$$$$$$ ');
 disp('              $$$$$$$ ');
 disp('               $$$$$ ');
+disp('  ');
 
 
 
@@ -201,7 +203,7 @@ for i = 1:(length(tm)-1)
     % process_model_function - handle for the state equation function
     %                          must have the form: myStateEquFunction(t, y, argvz)
     % sigmaPoints - this it the intial sigma points
-    Sigmas_f = state_transition(process_model_function, state_transition_Vargz, sigmaPoints, x_types, t_last_update, dtp, t_prior); % Checked
+    Sigmas_f = state_transition(process_model_function, state_transition__vargz, sigmaPoints, x_types, t_last_update, dtp, t_prior); % Checked
     if profiling_flag == 1
       disp('state_transition')
       toc
@@ -232,7 +234,7 @@ for i = 1:(length(tm)-1)
       tic
     end
     % _h denotes measurement version of prediction
-    Sigmas_h = meas_to_state_user(Sigmas_x, meas_to_state_vargz);
+    Sigmas_h = meas_to_state__user(Sigmas_x, meas_to_state__vargz);
     
     
     Sigmas_h = Sigmas_h';
@@ -256,7 +258,7 @@ for i = 1:(length(tm)-1)
     sol_K = [sol_K, K];
     
     % Get measurement for user defined measurement function
-    meas = get_measurement_user(t_prior, x_bar_hh, sol, get_measurement_vargz);
+    meas = get_measurement__user(t_prior, x_bar_hh, sol, get_measurement__vargz);
     
     % difference between the actual measurement and where the projected
     % state thinks what the measurement should have been
@@ -287,7 +289,8 @@ for i = 1:(length(tm)-1)
     % This is additional user defined functionality
     
     % periodic plotting
-    if (periodic_plotting == 1)
+    if (periodic_plotting == 1) && (tic_step__periodic_plotting < tm(i))
+      
       % some plotting
       state_index = find(strcmp(x_types, 'state') ==1);              % gets index of states
       parameter_index = find(strcmp(x_types, 'parameter') ==1);      % gets index of parameters
@@ -304,29 +307,33 @@ for i = 1:(length(tm)-1)
       
       plot(tm(1:length(sol(parameter_index,:))), sol(parameter_index,:) ,'-','LineWidth',2)
       
-      tic_step = tic_step + 1;
+      tic_step__periodic_plotting = tic_step__periodic_plotting + 1;
       
       pause(1)
     end
     
     if (dynamic_uncertainty == 1)
-      if (tic_step == 3)
+      if (tic_step__dynamic_uncertainty < tm(i))
+        tic_step__dynamic_uncertainty = tic_step__dynamic_uncertainty + 1;
+      end
+      
+      if (tic_step__dynamic_uncertainty == 3)
         Q = [[ 0.0001    0.0       0.0       ];...
              [ 0.0       0.0001    0.0       ];...
              [ 0.0       0.0       0.000001  ]];
-      elseif (tic_step == 6)
+      elseif (tic_step__dynamic_uncertainty == 6)
         Q = [[ 0.0001    0.0       0.0        ];...
              [ 0.0       0.0001    0.0        ];...
              [ 0.0       0.0       0.0000001  ]];
-      elseif (tic_step == 9)
+      elseif (tic_step__dynamic_uncertainty == 9)
         Q = [[ 0.00001   0.0       0.0        ];...
              [ 0.0       0.00001   0.0        ];...
              [ 0.0       0.0       0.0000001  ]];
-      elseif (tic_step == 9)
+      elseif (tic_step__dynamic_uncertainty == 9)
         Q = [[ 0.000001  0.0       0.0        ];...
              [ 0.0       0.000001  0.0        ];...
              [ 0.0       0.0       0.0000001  ]];
-      elseif (tic_step == 12)
+      elseif (tic_step__dynamic_uncertainty == 12)
         Q = [[ 0.000001  0.0       0.0        ];...
              [ 0.0       0.000001  0.0        ];...
              [ 0.0       0.0       0.00000001 ]];
