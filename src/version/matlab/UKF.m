@@ -3,141 +3,50 @@
 clear all
 close all
 %==========================================================================
-%=============================SET Constants================================
+%========================= UKF Import Toolkit =============================
 %==========================================================================
 
 addpath(genpath('./ukf/')); % import from sub directories (installs the toolkit)
 
-%addpath('./simulation/hemodynamic/');
-addpath('./simulation/linear_with_parameter/');
-%addpath('./user_design/linear_testbench/');
-addpath('./user_design/hemodynamic/');
+% -- Toolkit Flags
 
-%==============================Plots=======================================
-
-Test_plots = 1; %flag
+periodic_plotting = 1;
 profiling_flag = 0;
+dynamic_uncertainty = 0;
 
 %%
-%============================== SIMULATION ==============================
-% ------------------------- Simulation Settings -------------------------
-% These are
-%x0_init = 8.777e+04; % True intial start
-% c = 0.000750061683; % unit conversion 1 dyn/cm^2=0.0007750061 mmHg
-% x0_init = 80/c;
-% 
-% meas_variance = 0.5*10000000;
-% 
-% Cylces = 3;
-% 
-% % Measurement Time
-% t_sim_start = 0.0;         % start time
-% t_sim_end = Cylces * 0.8;  % end time
-% dt_sim = 1/500;            % time between measurements
+%==========================================================================
+%========================= User  System Setup =============================
+%==========================================================================
 
+% ===================== Import User System Directory =====================
 
+addpath('./simulation/linear_with_parameter/');
 
-% -------------------------------- Sim --------------------------------
+% ======================== Measurement Simulation ========================
 
-
-
-% Rc_true = 1600;  % Silly
-% Rd_true = 13000; %
-% C_true = 0.000025; %
-% 
-% cycle_time = 0.8;
-% Q_dt = 1e-4;
-% 
-% cycles_to_skip = 4;
-% 
-% % additional arguments for hemo_pressure (alias of pressure_function)
-% true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt];
-% 
-% % Generate true states
-% [true_pressure_state, true_time_stamp] = true_hemodynamic_state(@pressure_function,  x0_init,  t_sim_start, dt_sim, t_sim_end,  true_hemodynamic_state_argz, cycles_to_skip);
-% 
-% % Generate true measurements.  Returns also the new time series that accounts
-% [tm_true_stamp, true_measurement] = true_hemodynamic_measurement(@hemodynamic_state_to_measurement, true_pressure_state, true_time_stamp);
-% 
-% -- Sim measurements
-% zm = noisy_measurements(true_measurement, meas_variance);
-% 
-% -- Sim runtime
-% tm = tm_true_stamp;
-
-
-% Measurement Time
-
+% -- Measurement Time
 t_sim_start =  0.00;  % start time
 t_sim_end   = 14.00;  % end time
 dt_sim      =  0.01;  % time between measurements
 
 tm = t_sim_start:dt_sim:t_sim_end;
+
+% -- True Inital State
 x_init = [1 2];
 
 true_meas(1,:) = (3*sin(2*tm)+3*cos(2*tm)-1)/2;
 true_meas(2,:) =  3*cos(2*tm)-1;
 
+% -- Noisy Measurements
 zm = noisy_measurements(true_meas, 0.005);
 
 tic_step = 0;
 
 
-%%
-% ======================= SYSTEM DESIGN from USER =======================
-%Pref  = 80/c;      %mmHg
-%Rcref = 1600;
-%Rdref = 13000;
-%Cref  = 0.000025;
-% 
-% 
-% % -- State Vector
-% x_user = { 80/c  'state'    ;...
-%            Rcref 'parameter';...
-%            Rdref 'parameter';...
-%            Cref  'parameter'};
-% 
-% % -- State Estimator Variance and Covariance Matrix
-% P_user = [[ 8.0  0.0  0.0  0.0];...
-%           [ 0.0  8.0  0.0  0.0];...
-%           [ 0.0  0.0  8.0  0.0];...
-%           [ 0.0  0.0  0.0  8.0]];
-%   
-% % -- Process model
-% process_model_function_user = @pressure_function;
-% 
-% % UKF Process model prediction Time
-% t_last_update = t_sim_start; % time at last update
-% t_prior = 0.0;               % time at prior, this is updated in loop
-% dtp = 0;                     % time per step in sigma predecition projection
-% 
-% 
-% dt_user = dtp;
-% 
-% % -- Process Model Variance and Covariance Matrix
-% a_ = 0.001;
-% f_ = 0.01;
-% Q_user = ([[  a_,   0.0,   0.0,   0.0];...
-%            [ 0.0, f_*a_,   0.0,   0.0];...
-%            [ 0.0,   0.0, f_*a_,   0.0];...
-%            [ 0.0,   0.0,   0.0,  f_*a_]]);
-% 
-% % State Function Model for State Estimator
-% state_to_measurment_function = @hemodynamic_state_to_measurement;
-% 
-% % State Function Model parameters (vargz for state_transition())
-% state_transition_Vargz = [cycle_time Q_dt];
-% 
-% % -- Measurement Variance and Covariance Matrix
-% R_user = [0.005]; % For X meas only
-% 
-% 
-% % --- Sigma Points tuning parameters ---
-% 
-% alpha =  0.1;
-% beta  =  2.0;
-% kappa = -1.0; % prolly should be set to n-3, so -1
+% ============================ USER UKF DESIGN ============================
 
+% STATE DESIGN
 
 % -- State Vector
 x_user = {  zm(1) 'state';...
@@ -145,67 +54,67 @@ x_user = {  zm(1) 'state';...
            -300.0 'parameter'};
         
 % -- State Estimator Variance and Covariance Matrix
-P_user = [[ 10000.0      0.0      0.0      0.0 ];...
-          [     0.0  10000.0      0.0      0.0 ];...
-          [     0.0      0.0  20000.0      0.0 ] 
-          [     0.0      0.0      0.0  20000.0 ]];...
+P_user = [[ 10000.0      0.0      0.0 ];...
+          [     0.0  10000.0      0.0 ];...
+          [     0.0      0.0  20000.0 ]];...
 
-% -- Process model
+
+% PROCESS DESIGN
+
+% -- Process Model
 process_model_function_user = @linear_with_parameter_sys;
 
-% UKF Process model prediction Time
+
+% -- Process Model Forcast Time
 t_last_update = tm(1); % time at last update
-t_prior = 0.0;               % time at prior, this is updated in loop
-dtp = 0;                     % time per step in sigma predecition projection
+t_prior = 0.0;         % time at prior, this is updated in loop
+dtp = 0;               % time per step in sigma predecition projection
 
 % -- Process Model Variance and Covariance Matrix
-Q_user = [[ 0.0001   0.0      0.0      ];...
-          [ 0.0      0.0001   0.0      ];...
-          [ 0.0      0.0      0.001    ];...
-          [ 0.0      0.0      0.0      ]];
+Q_user = [[ 0.0001   0.0      0.0  ];...
+          [ 0.0      0.0001   0.0  ];...
+          [ 0.0      0.0      0.001]];
 
-% State Function Model parameters (vargz for state_transition())
-state_transition_Vargz = [0.0];
+% -- State Function Model parameters (vargz for state_transition())
+state_transition_Vargz = [0];
 
+
+% MEASUREMENT DESIGN
 
 % -- Measurement function
 get_measurement_user = @linear_with_parameter__get_measurement;
 
 get_measurement_vargz = {tm zm x_user{3,1}};
 
-
 % -- Measurement Variance and Covariance Matrix
 R_user = [[0.1  0.00 0.00];...
           [0.00 0.1  0.00];...
           [0.00 0.00 0.01]];
 
+% -- State to Measurement function
+meas_to_state_user = @linear_with_parameter__meas_to_state;
+meas_to_state_vargz = [0];
 
-% --- Sigma Points tuning parameters ---
+
+% UKF PARAMETER DESIGN
+
+% -- Sigma Points tuning parameters --
 alpha =  0.1;
 beta  =  2.0;
-kappa = -1.0; % prolly should be set to n-3, so -1
+kappa =  0.0;
+
+
+
 
 %%
-%==============Making Measuments and comparing to True funtion=============
-
-%setting seed
-rng('default')
 
 
-if Test_plots == 1
-    figure
-    %plot(x_True(1),x_True(3),'o')
-    hold on
-    %plot(y_True, x_True, 'k', 'LineWidth', 3)
-    plot(tm, zm, 'k', 'LineWidth', 3)
-    grid on
-    xlabel('Time (s)')
-    ylabel('Pressure (log world)')
-    shg
-end
+%==========================================================================
+%================== >>> = UKF PARAMETER ESTIMATION = <<< ==================
+%==========================================================================
 
 
-%==========================Initialize Matrices=============================
+% ======================== Initialize Matrices ===========================
 x = [x_user{:,1}]';
 x_types = {x_user{:,2}};
 P = P_user;
@@ -233,9 +142,41 @@ sol = x;
 param_mes = [];
 sol_K = [];
 
-% for compa
 
 
+
+disp('    $$$$$$      $$$$$ ');
+disp('  $$$$$$$$$$  $$$$$$$$$ ');
+disp(' $$$$$$$$$$$$$$$$$$$$$$$$ ');
+disp('$$$    /\          /\  $$$ ');
+disp('$$$_  /  \__/\__  /  \_$$$ ');
+disp('$$$ \/          \/     $$$ ');
+disp(' $$$$$$$$$$$$$$$$$$$$$$$$ ');
+disp('  $$$$$$$$$$$$$$$$$$$$$$ ');
+disp('    $$$$$$$$$$$$$$$$$$ ');
+disp('      $$$$$$$$$$$$$$$ ');
+disp('        $$$$$$$$$$$$ ');
+disp('          $$$$$$$$ ');
+disp('           $$$$$$ ');
+disp('            $$$$ ');
+disp('             $$ ');
+disp('                ');
+disp('            $ ');
+disp('           $$$ ');
+disp('          $$$$$ ');
+disp('         $$$$$$$ ');
+disp('         $$$$$$$ ');
+disp('          $$$$$ ');
+disp('                 $ ');
+disp('                $$$ ');
+disp('               $$$$$ ');
+disp('              $$$$$$$ ');
+disp('              $$$$$$$ ');
+disp('               $$$$$ ');
+
+
+
+% ============================= Main Loop ================================
 for i = 1:(length(tm)-1)
     if profiling_flag == 1
       tic
@@ -291,10 +232,7 @@ for i = 1:(length(tm)-1)
       tic
     end
     % _h denotes measurement version of prediction
-    % >>> !!! THIS WAS A BUG THAT WAS NEVER FIXED !!! <<<
-    %Sigmas_h = state_to_measurment(hemodynamic_state_to_measurement, Sigmas_x, 0);
-    %Sigmas_h = hemodynamic_state_to_measurement(Sigmas_x,  0.0);
-    Sigmas_h = linear_with_parameter_meas_to_state(Sigmas_x, 0.0);
+    Sigmas_h = meas_to_state_user(Sigmas_x, meas_to_state_vargz);
     
     
     Sigmas_h = Sigmas_h';
@@ -349,7 +287,7 @@ for i = 1:(length(tm)-1)
     % This is additional user defined functionality
     
     % periodic plotting
-    if tic_step < tm(i)
+    if (periodic_plotting == 1)
       % some plotting
       state_index = find(strcmp(x_types, 'state') ==1);              % gets index of states
       parameter_index = find(strcmp(x_types, 'parameter') ==1);      % gets index of parameters
@@ -369,6 +307,9 @@ for i = 1:(length(tm)-1)
       tic_step = tic_step + 1;
       
       pause(1)
+    end
+    
+    if (dynamic_uncertainty == 1)
       if (tic_step == 3)
         Q = [[ 0.0001    0.0       0.0       ];...
              [ 0.0       0.0001    0.0       ];...
@@ -391,7 +332,6 @@ for i = 1:(length(tm)-1)
              [ 0.0       0.0       0.00000001 ]];
       end
     end
-  %java.lang.Thread.sleep(0.001*1000)
 end
 
 
