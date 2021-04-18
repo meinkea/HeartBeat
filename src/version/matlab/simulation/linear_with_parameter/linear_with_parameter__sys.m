@@ -1,4 +1,4 @@
-function res = linear_with_parameter_sys(t, y, vargz)
+function res = linear_with_parameter__sys(t, y, vargz)
 
   a = vargz(1);
   
