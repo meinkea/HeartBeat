@@ -21,88 +21,87 @@ dynamic_uncertainty = 0;
 
 % ===================== Import User System Directory =====================
 
-addpath('./simulation/linear_with_parameter/');
+addpath('./simulation/   /');
 
 % ======================== Measurement Simulation ========================
 
 % -- Measurement Time
-t_sim_start =  0.00;  % start time
-t_sim_end   = 14.00;  % end time
-dt_sim      =  0.01;  % time between measurements
+t_sim_start =          % start time
+t_sim_end   =          % end time
+dt_sim      =          % time between measurements
 
-tm = t_sim_start:dt_sim:t_sim_end;
+tm = 
 
 % -- True Inital State
-x_init = [1 2];
+x_init = 
 
-true_meas(1,:) = (3*sin(2*tm)+3*cos(2*tm)-1)/2;
-true_meas(2,:) =  3*cos(2*tm)-1;
+true_meas = 
 
 % -- Noisy Measurements
-zm = noisy_measurements(true_meas, 0.005);
+zm = 
 
 
 % ============================ USER UKF DESIGN ============================
 
 % STATE DESIGN
 
+% -- Parameter Initialization
+dmeas = [];
+A = [];
+p_init = [];
+
+p_init = 
+
 % -- State Vector
-x_user = {  zm(1) 'state';...
-            zm(2) 'state';...
-           -300.0 'parameter'};
+x_user = {     zm(1) 'state';...
+               zm(2) 'state';...
+           p_init(1) 'parameter';...
+           p_init(2) 'parameter'};
         
 % -- State Estimator Variance and Covariance Matrix
-P_user = [[ 10000.0      0.0      0.0 ];...
-          [     0.0  10000.0      0.0 ];...
-          [     0.0      0.0  20000.0 ]];...
+P_user = 
 
 
 % PROCESS DESIGN
 
 % -- Process Model
-process_model_function__user = @linear_with_parameter__process_model;
-
+process_model_function__user = 
 
 % -- Process Model Forcast Time
-t_last_update = tm(1); % time at last update
-t_prior = 0.0;         % time at prior, this is updated in loop
-dtp = 0;               % time per step in sigma predecition projection
+t_last_update =        % time at last update
+t_prior =              % time at prior, this is updated in loop
+dtp =                  % time per step in sigma predecition projection
 
 % -- Process Model Variance and Covariance Matrix
-Q_user = [[ 0.0001   0.0      0.0  ];...
-          [ 0.0      0.0001   0.0  ];...
-          [ 0.0      0.0      0.001]];
+Q_user = 
 
 % -- State Function Model parameters (vargz for state_transition())
-state_transition__vargz = [0];
+state_transition__vargz = 
 
 
 % MEASUREMENT DESIGN
 
 % -- Measurement function
-get_measurement__user = @linear_with_parameter__get_measurement;
-
-get_measurement__vargz = {tm zm x_user{3,1}};
+get_measurement__user = 
+get_measurement__vargz = 
 
 % -- Measurement Variance and Covariance Matrix
-R_user = [[0.1  0.00 0.00];...
-          [0.00 0.1  0.00];...
-          [0.00 0.00 0.01]];
+R_user = 
 
 % -- State to Measurement function
-meas_to_state__user = @linear_with_parameter__meas_to_state;
-meas_to_state__vargz = [0];
+meas_to_state__user = 
+meas_to_state__vargz = 
 
 
 % UKF PARAMETER DESIGN
 
 % -- Sigma Points tuning parameters --
-alpha =  0.1;
-beta  =  2.0;
-kappa =  0.0;
+alpha =      
+beta  =      
+kappa =  
 
 
-
+% === End of User Input ===
 
 %%
 
@@ -234,7 +233,7 @@ for i = 1:(length(tm)-1)
       tic
     end
     % _h denotes measurement version of prediction
-    Sigmas_h = meas_to_state__user(Sigmas_x, meas_to_state__vargz);
+    [Sigmas_h, Sigma_h_types] = meas_to_state__user(Sigmas_x, x_types, meas_to_state__vargz);
     
     
     Sigmas_h = Sigmas_h';
@@ -283,7 +282,8 @@ for i = 1:(length(tm)-1)
       toc
     end
     
-    param_mes = [param_mes, meas(3)];
+    Sigma_h_parameter_index = find(strcmp(Sigma_h_types, 'parameter') ==1);      % gets index of parameters
+    param_mes = [param_mes, meas(Sigma_h_parameter_index)];
     
     
     % This is additional user defined functionality
@@ -303,18 +303,19 @@ for i = 1:(length(tm)-1)
       plot(tm(1:length(sol(state_index,:))), sol(state_index,:) ,'-','LineWidth',2)
       
       subplot(1,2,2)
-      plot(tm(1:length(param_mes([1],:))), param_mes([1],:) ,'o','LineWidth',1)
+      hold on
+      plot(tm(1:length(param_mes)), param_mes,'o','LineWidth',1)
       
       plot(tm(1:length(sol(parameter_index,:))), sol(parameter_index,:) ,'-','LineWidth',2)
       
-      tic_step__periodic_plotting = tic_step__periodic_plotting + 1;
+      tic_step__periodic_plotting = tic_step__periodic_plotting + 0.25;
       
       pause(1)
     end
     
     if (dynamic_uncertainty == 1)
       if (tic_step__dynamic_uncertainty < tm(i))
-        tic_step__dynamic_uncertainty = tic_step__dynamic_uncertainty + 1;
+        tic_step__dynamic_uncertainty = tic_step__dynamic_uncertainty + 0.25;
       end
       
       if (tic_step__dynamic_uncertainty == 3)
