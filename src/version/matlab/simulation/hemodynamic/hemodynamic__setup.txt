@@ -1,0 +1,118 @@
+%%
+%==========================================================================
+%========================= User  System Setup =============================
+%==========================================================================
+
+% ===================== Import User System Directory =====================
+
+addpath('./simulation/hemodynamic/');
+
+% ======================== USER Defined Constants ========================
+
+c = 0.000750061683; % unit conversion 1 dyn/cm^2=0.0007750061 mmHg
+
+P_true  =    80.0;      % mmHg
+Rc_true =  1600.0;      % Dyn-Sec / cm^5
+Rd_true = 13000.0;      % Dyn-Sec / cm^5
+C_true  =     0.000025; % cm^5 / Dyn
+
+
+% ======================== Measurement Simulation ========================
+
+% -- USER Defined Constants
+cycle_time = 0.8;
+Q_dt = 1e-4;
+
+cycles_to_skip = 4;
+
+% -- Measurement Time
+t_sim_start =  0.0;    % start time
+t_sim_end   = 20.0;    % end time
+dt_sim      =  0.002;  % time between measurements
+
+tm = t_sim_start:dt_sim:t_sim_end;
+
+% MAKE MEASUREMENTS
+
+% -- True Inital State
+x_true_init = [80/c];
+
+true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt];
+
+% -- Generate true states
+[true_pressure_state, true_time_stamp] = true_hemodynamic_state(@pressure_function,  x_true_init (1),  t_sim_start, dt_sim, t_sim_end,  true_hemodynamic_state_argz, cycles_to_skip);
+
+% -- Generate true measurements.  Returns also the new time series that accounts
+[tm_true_stamp, true_meas] = true_hemodynamic_measurement(@hemodynamic_state_to_measurement, true_pressure_state, true_time_stamp);
+
+% -- Noisy Measurements
+zm = noisy_measurements(true_meas, 0.005);
+
+% -- Get Measurement timestamps
+tm = tm_true_stamp;
+
+
+% ============================ USER UKF DESIGN ============================
+
+% STATE DESIGN
+
+x_init = zm(1);
+p_init = [1500.0 17000.0 0.000026];
+
+% -- State Vector
+x_user = { x_init(1) 'state';...
+           p_init(1) 'parameter';...
+           p_init(2) 'parameter';...
+           p_init(3) 'parameter'};
+
+% -- State Estimator Variance and Covariance Matrix
+P_user = [[ 8.0  0.0  0.0  0.0];...
+          [ 0.0  8.0  0.0  0.0];...
+          [ 0.0  0.0  8.0  0.0];...
+          [ 0.0  0.0  0.0  8.0]];
+
+
+% PROCESS DESIGN
+
+% -- Process Model
+process_model_function__user = @pressure_function;
+
+% -- Process Model Forcast Time
+t_last_update = tm(1); % time at last update
+t_prior = 0.0;         % time at prior, this is updated in loop
+dtp = 0;               % time per step in sigma predecition projection
+
+% -- Process Model Variance and Covariance Matrix
+Q_user = [[ 0.0001  0.0     0.0     0.0    ];...
+          [ 0.0     0.0001  0.0     0.0    ];...
+          [ 0.0     0.0     0.0001  0.0    ];...
+          [ 0.0     0.0     0.0     0.0001 ]];
+
+% -- State Function Model parameters (vargz for state_transition())
+state_transition__vargz = [0];
+
+
+% MEASUREMENT DESIGN
+
+% -- Measurement function
+get_measurement__user = @hemodynamic__get_measurement;
+
+get_measurement__vargz = { tm zm };
+
+% -- Measurement Variance and Covariance Matrix
+R_user = [[0.1]];
+
+% -- State to Measurement function
+meas_to_state__user = @hemodynamic_state_to_measurement;
+meas_to_state__vargz = [0];
+
+
+% UKF PARAMETER DESIGN
+
+% -- Sigma Points tuning parameters
+alpha =  0.1;
+beta  =  2.0;
+kappa =  1.0;
+
+
+% === End of User Input ===
