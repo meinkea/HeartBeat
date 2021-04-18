@@ -79,7 +79,7 @@ meas_to_state__vargz =
 
 % UKF PARAMETER DESIGN
 
-% -- Sigma Points tuning parameters --
+% -- Sigma Points tuning parameters
 alpha =      
 beta  =      
 kappa =  
