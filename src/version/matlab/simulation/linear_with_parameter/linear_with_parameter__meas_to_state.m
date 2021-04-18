@@ -1,4 +1,4 @@
-function res = linear_with_parameter_meas_to_state(y, vargz)
+function res = linear_with_parameter__meas_to_state(y, vargz)
   
   if (length(y(1,:)) == 2)
     H = [[1 0 0];...
