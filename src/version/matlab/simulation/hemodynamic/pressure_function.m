@@ -11,7 +11,7 @@ function dP = pressure_function(t,P, vargz)
   cycle_time = vargz(4);
   Q_dt = vargz(5);
   
-  dP = (1/C * ( (1+ (R1/R2))*blood_flow(t,cycle_time) + C*R1*dQ(t,cycle_time,Q_dt) - (P / R2))));
+  dP = (  1/C * ( (1+(R1/R2))*blood_flow(t,cycle_time) + C*R1*dQ(t,cycle_time,Q_dt) - (P/R2) )  );
   
 end
 %------------------------------------------------------------------
