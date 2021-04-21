@@ -95,7 +95,7 @@ meas_to_state__vargz =
 
 % UKF PARAMETER DESIGN
 
-% -- Sigma Points tuning parameters --
+% -- Sigma Points tuning parameters
 alpha =      
 beta  =      
 kappa =  
@@ -112,29 +112,37 @@ kappa =
 
 
 % ======================== Initialize Matrices ===========================
-x = [x_user{:,1}]';
-x_types = {x_user{:,2}};
+x_real = [x_user{:,1}]';
+x_state_types = {x_user{:,2}};
+x_probability_distribution_types = {x_user{:,3}};
+
+sol = x_real;
+
+x_sys = real_to_log_state_transform(x_real', x_probability_distribution_types);
+
+x_sys = x_sys';
+
 P = P_user;
 Q = Q_user;
 R = R_user;
 
 process_model_function = process_model_function__user;
 
-
 % number of state vectors
-n = length( x );
+n = length( x_sys );
 
 % number of measured observations
 nmo = length(R);
 
 [sigmaPoints,weights,lambda,P_bar_xx,P_bar_hh] = initialize(n,alpha,kappa,nmo); % this should be broken up
-sol = x;
-
-
 
 % These are the weigths used in the uncented transform
 % They are static and never change
 [Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
+
+
+
+
 
 param_mes = [];
 sol_K = [];
@@ -187,11 +195,15 @@ for i = 1:(length(tm)-1)
     t_prior = tm(i+1); % this needs to be decoupled from sim
     
     
-    sigmaPoints = compute_sigma_points(n, lambda, x, P); % Checked
+    sigmaPoints = compute_sigma_points(n, lambda, x_sys, P); % Checked
     if profiling_flag == 1
       disp('sigmaPoints')
       toc
     end
+    
+    % Unpack lognormal for forcast
+    sigmaPoint_real = log_to_real_state_transform(sigmaPoints, x_probability_distribution_types);
+    
 
     if profiling_flag == 1
       tic
@@ -202,11 +214,14 @@ for i = 1:(length(tm)-1)
     % process_model_function - handle for the state equation function
     %                          must have the form: myStateEquFunction(t, y, argvz)
     % sigmaPoints - this it the intial sigma points
-    Sigmas_f = state_transition(process_model_function, state_transition__vargz, sigmaPoints, x_types, t_last_update, dtp, t_prior); % Checked
+    Sigmas_forcasted = state_transition(process_model_function, state_transition__vargz, sigmaPoint_real, x_state_types, t_last_update, dtp, t_prior); % Checked
     if profiling_flag == 1
       disp('state_transition')
       toc
     end
+    
+    % Repack lognormal variables
+    Sigmas_f = real_to_log_state_transform(Sigmas_forcasted, x_probability_distribution_types);
     
     if profiling_flag == 1
       tic
@@ -233,7 +248,7 @@ for i = 1:(length(tm)-1)
       tic
     end
     % _h denotes measurement version of prediction
-    [Sigmas_h, Sigma_h_types] = meas_to_state__user(Sigmas_x, x_types, meas_to_state__vargz);
+    [Sigmas_h, Sigma_h_types] = meas_to_state__user(Sigmas_x, x_state_types, meas_to_state__vargz);
     
     
     Sigmas_h = Sigmas_h';
@@ -257,7 +272,10 @@ for i = 1:(length(tm)-1)
     sol_K = [sol_K, K];
     
     % Get measurement for user defined measurement function
-    meas = get_measurement__user(t_prior, x_bar_hh, sol, get_measurement__vargz);
+    [meas_real, meas_probability_distribution_types] = get_measurement__user(t_prior, x_bar_hh, sol, get_measurement__vargz);
+    
+    % Transform measurement into log world
+    meas = real_to_log_state_transform(meas_real, meas_probability_distribution_types);
     
     % difference between the actual measurement and where the projected
     % state thinks what the measurement should have been
@@ -270,10 +288,11 @@ for i = 1:(length(tm)-1)
     % Uses the Kalman gain to adjust the system's state estimate
     %   This will be someplace between the uncented transform's project
     %   state and the measurement state
-    x = state_update(x_bar_xx,K,y); % wrong Sigmas where going in here!!!
+    x_sys = state_update(x_bar_xx,K,y); % wrong Sigmas where going in here!!!
     
+    x_real = log_to_real_state_transform(x_sys', x_probability_distribution_types);
     
-    sol = [sol, x];
+    sol = [sol, x_real'];
     
     % update the last update timestamp
     t_last_update = t_prior; % this needs to be decoupled from sim
@@ -283,7 +302,7 @@ for i = 1:(length(tm)-1)
     end
     
     Sigma_h_parameter_index = find(strcmp(Sigma_h_types, 'parameter') ==1);      % gets index of parameters
-    param_mes = [param_mes, meas(Sigma_h_parameter_index)];
+    param_mes = [param_mes, meas_real(Sigma_h_parameter_index)];
     
     
     % This is additional user defined functionality
@@ -292,9 +311,9 @@ for i = 1:(length(tm)-1)
     if (periodic_plotting == 1) && (tic_step__periodic_plotting < tm(i))
       
       % some plotting
-      state_index = find(strcmp(x_types, 'state') ==1);              % gets index of states
-      parameter_index = find(strcmp(x_types, 'parameter') ==1);      % gets index of parameters
-      constraint_index = find(strcmp(x_types, 'constraint') ==1);    % gets index of constraints
+      state_index = find(strcmp(x_state_types, 'state') ==1);              % gets index of states
+      parameter_index = find(strcmp(x_state_types, 'parameter') ==1);      % gets index of parameters
+      constraint_index = find(strcmp(x_state_types, 'constraint') ==1);    % gets index of constraints
       
       hold off
       subplot(1,2,1)
@@ -344,9 +363,9 @@ end
 
 
 % some plotting
-state_index = find(strcmp(x_types, 'state') ==1);              % gets index of states
-parameter_index = find(strcmp(x_types, 'parameter') ==1);      % gets index of parameters
-constraint_index = find(strcmp(x_types, 'constraint') ==1);    % gets index of constraints
+state_index = find(strcmp(x_state_types, 'state') ==1);              % gets index of states
+parameter_index = find(strcmp(x_state_types, 'parameter') ==1);      % gets index of parameters
+constraint_index = find(strcmp(x_state_types, 'constraint') ==1);    % gets index of constraints
 
 
 hold off

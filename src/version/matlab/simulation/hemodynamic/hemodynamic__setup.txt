@@ -12,8 +12,8 @@ addpath('./simulation/hemodynamic/');
 c = 0.000750061683; % unit conversion 1 dyn/cm^2=0.0007750061 mmHg
 
 P_true  =     80.0;      % mmHg
-Rc_true =   1600.0;      % Dyne-Sec / cm^5
-Rd_true =  13000.0;      % Dyne-Sec / cm^5
+R1_true =   1600.0;      % Dyne-Sec / cm^5
+R2_true =  13000.0;      % Dyne-Sec / cm^5
 C_true  =      0.000025; % cm^5 / Dyne
 
 
@@ -37,7 +37,7 @@ tm = t_sim_start:dt_sim:t_sim_end;
 % -- True Inital State
 x_true_init = [80/c];  % Dyne / cm^2
 
-true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt];
+true_hemodynamic_state_argz = [R1_true, R2_true, C_true, cycle_time, Q_dt];
 
 % -- Generate true states
 [true_pressure_state, true_time_stamp] = true_hemodynamic_state(@pressure_function,  x_true_init (1),  t_sim_start, dt_sim, t_sim_end,  true_hemodynamic_state_argz, cycles_to_skip);
@@ -46,7 +46,7 @@ true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt];
 [tm_true_stamp, true_meas] = true_hemodynamic_measurement(@hemodynamic__true_state_to_meas, true_pressure_state, true_time_stamp);
 
 % -- Noisy Measurements
-zm = noisy_measurements(true_meas, 0.005);
+zm = noisy_measurements(true_meas, 0); % 500000 for noise
 
 % -- Get Measurement timestamps
 tm = tm_true_stamp;
@@ -57,19 +57,19 @@ tm = tm_true_stamp;
 % STATE DESIGN
 
 x_init = zm(1);
-p_init = [1500.0 12000.0 0.000026];
+p_init = [1600.0 13000.0 0.000025]; % R1, R2, R3
 
 % -- State Vector
-x_user = { x_init(1)  'state'     ;...
-           p_init(1)  'parameter' ;...
-           p_init(2)  'parameter' ;...
-           p_init(3)  'parameter' };
+x_user = { x_init(1)  'state'      'lognormal';...
+           p_init(1)  'parameter'  'lognormal';...
+           p_init(2)  'parameter'  'lognormal';...
+           p_init(3)  'parameter'  'lognormal'};
 
 % -- State Estimator Variance and Covariance Matrix
-P_user = [[ 100.0  0.0  0.0  0.0];...
-          [   0.0  8.0  0.0  0.0];...
-          [   0.0  0.0  8.0  0.0];...
-          [   0.0  0.0  0.0  8.0]];
+P_user = [[  10.0     0.0     0.0     0.0    ];...
+          [   0.0    10.0     0.0     0.0    ];...
+          [   0.0     0.0    10.0     0.0    ];...
+          [   0.0     0.0     0.0    10.0    ]];
 
 
 % PROCESS DESIGN
@@ -83,10 +83,10 @@ t_prior = 0.0;         % time at prior, this is updated in loop
 dtp = 0;               % time per step in sigma predecition projection
 
 % -- Process Model Variance and Covariance Matrix
-Q_user = [[ 0.05    0.0     0.0     0.0    ];...
-          [ 0.0     0.001   0.0     0.0    ];...
-          [ 0.0     0.0     0.001   0.0    ];...
-          [ 0.0     0.0     0.0     0.001  ]];
+Q_user = [[ 0.001   0.0     0.0     0.0    ];...
+          [ 0.0     0.0001  0.0     0.0    ];...
+          [ 0.0     0.0     0.0001  0.0    ];...
+          [ 0.0     0.0     0.0     0.0001 ]];
 
 % -- State Function Model parameters (vargz for state_transition())
 state_transition__vargz = [cycle_time Q_dt];
@@ -100,8 +100,9 @@ get_measurement__user = @hemodynamic__get_measurement;
 get_measurement__vargz = { tm zm process_model_function__user x_user{2,1} x_user{3,1} x_user{4,1} cycle_time Q_dt };
 
 % -- Measurement Variance and Covariance Matrix
-R_user = [[ 0.01  0.0 ];...
-          [ 0.0   0.1 ]];
+R_user = [[ 0.1 ]];
+% R_user = [[ 0.0001  0.0 ];...
+%           [ 0.0   0.1 ]];
 
 % -- State to Measurement function
 meas_to_state__user = @hemodynamic__state_to_meas;

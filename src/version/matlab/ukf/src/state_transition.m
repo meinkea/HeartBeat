@@ -8,6 +8,7 @@ function  Sigmas  = state_transition(func, Vargz, sigmaPoints, state_types, t_0,
     prediction_time_points = t_0:dt:t_1;
   end
   
+  
   % Get indexes
   state_index = find(strcmp(state_types, 'state') ==1);              % gets index of states
   parameter_index = find(strcmp(state_types, 'parameter') ==1);      % gets index of parameters
