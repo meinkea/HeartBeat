@@ -1,0 +1,19 @@
+function res = linear_with_parameter__meas_to_state(y, vargz)
+  
+  if (length(y(1,:)) == 2)
+    H = [[1 0 0];...
+         [0 1 0]];
+  elseif (length(y(1,:)) == 3)
+    H = [[1 0 0];...
+         [0 1 0];...
+         [0 0 1]];
+  else
+    H = [[1 0 0 0];...
+         [0 1 0 0];...
+         [0 0 1 0];...
+         [0 0 0 1]];
+  end
+  
+  res = H*y';
+  
+end
