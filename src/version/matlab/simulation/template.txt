@@ -1,0 +1,88 @@
+%%
+%==========================================================================
+%========================= User  System Setup =============================
+%==========================================================================
+
+% ===================== Import User System Directory =====================
+
+addpath('./simulation/   /');
+
+% ======================== Measurement Simulation ========================
+
+% -- Measurement Time
+t_sim_start =          % start time
+t_sim_end   =          % end time
+dt_sim      =          % time between measurements
+
+tm = 
+
+% -- True Inital State
+x_init = 
+
+true_meas = 
+
+% -- Noisy Measurements
+zm = 
+
+
+% ============================ USER UKF DESIGN ============================
+
+% STATE DESIGN
+
+% -- Parameter Initialization
+dmeas = [];
+A = [];
+p_init = [];
+
+p_init = 
+
+% -- State Vector
+x_user = {     zm(1) 'state';...
+               zm(2) 'state';...
+           p_init(1) 'parameter';...
+           p_init(2) 'parameter'};
+        
+% -- State Estimator Variance and Covariance Matrix
+P_user = 
+
+
+% PROCESS DESIGN
+
+% -- Process Model
+process_model_function__user = 
+
+% -- Process Model Forcast Time
+t_last_update =        % time at last update
+t_prior =              % time at prior, this is updated in loop
+dtp =                  % time per step in sigma predecition projection
+
+% -- Process Model Variance and Covariance Matrix
+Q_user = 
+
+% -- State Function Model parameters (vargz for state_transition())
+state_transition__vargz = 
+
+
+% MEASUREMENT DESIGN
+
+% -- Measurement function
+get_measurement__user = 
+get_measurement__vargz = 
+
+% -- Measurement Variance and Covariance Matrix
+R_user = 
+
+% -- State to Measurement function
+meas_to_state__user = 
+meas_to_state__vargz = 
+
+
+% UKF PARAMETER DESIGN
+
+% -- Sigma Points tuning parameters
+alpha =      
+beta  =      
+kappa =  
+
+
+% === End of User Input ===

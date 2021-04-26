@@ -1,0 +1,100 @@
+%%
+%==========================================================================
+%========================= User  System Setup =============================
+%==========================================================================
+
+% ===================== Import User System Directory =====================
+
+addpath('./simulation/linear_with_two_parameter/');
+
+% ======================== Measurement Simulation ========================
+
+% -- Measurement Time
+t_sim_start =   0.00;  % start time
+t_sim_end   =  50.00;  % end time
+dt_sim      =   0.01;  % time between measurements
+
+tm = t_sim_start:dt_sim:t_sim_end;
+
+% -- True Inital State
+x_init = [1 2];
+
+true_meas(1,:) = (3*sin(2*tm)+3*cos(2*tm)-1)/2;
+true_meas(2,:) =  3*cos(2*tm)-1;
+
+% -- Noisy Measurements
+zm = noisy_measurements(true_meas, 0.005);
+
+
+% ============================ USER UKF DESIGN ============================
+
+% STATE DESIGN
+
+% -- Parameter Initialization
+dmeas = [];
+A = [];
+p_init = [];
+for i = 1:20
+  dmeas = [dmeas', ((zm(1,i+1)-zm(1,i))/dt_sim)']';
+  A = [A', [-2*zm(1,i) zm(2,i) 1]']';
+end
+p_init = inv(A'*A)*A'*dmeas;
+
+% -- State Vector
+x_user = {     zm(1) 'state';...
+               zm(2) 'state';...
+           p_init(1) 'parameter';...
+           p_init(2) 'parameter'};
+        
+% -- State Estimator Variance and Covariance Matrix
+P_user = [[ 10000.0      0.0      0.0      0.0 ];...
+          [     0.0  10000.0      0.0      0.0 ];...
+          [     0.0      0.0     10.0      0.0 ];...
+          [     0.0      0.0      0.0     10.0 ]];...
+
+
+% PROCESS DESIGN
+
+% -- Process Model
+process_model_function__user = @linear_with_two_parameter__process_model;
+
+% -- Process Model Forcast Time
+t_last_update = tm(1); % time at last update
+t_prior = 0.0;         % time at prior, this is updated in loop
+dtp = 0;               % time per step in sigma predecition projection
+
+% -- Process Model Variance and Covariance Matrix
+Q_user = [[ 0.001    0.0      0.0      0.0      ];...
+          [ 0.0      0.001    0.0      0.0      ];...
+          [ 0.0      0.0      0.00001  0.0      ];...
+          [ 0.0      0.0      0.0      0.00001  ]];
+
+% -- State Function Model parameters (vargz for state_transition())
+state_transition__vargz = [0];
+
+
+% MEASUREMENT DESIGN
+
+% -- Measurement function
+get_measurement__user = @linear_with_two_parameter__get_measurement;
+get_measurement__vargz = {tm zm x_user{3,1}};
+
+% -- Measurement Variance and Covariance Matrix
+R_user = [[ 0.1  0.0  0.0 ];...
+          [ 0.0  0.1  0.0 ];...
+          [ 0.0  0.0  1.0 ]];
+
+% -- State to Measurement function
+meas_to_state__user = @linear_with_two_parameter__meas_to_state;
+meas_to_state__vargz = [0];
+
+
+% UKF PARAMETER DESIGN
+
+% -- Sigma Points tuning parameters
+alpha =  0.1;
+beta  =  2.0;
+kappa =  0.0;
+
+
+

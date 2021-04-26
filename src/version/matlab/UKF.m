@@ -3,176 +3,263 @@
 clear all
 close all
 %==========================================================================
-%=============================SET Constants================================
+%========================= UKF Import Toolkit =============================
 %==========================================================================
 
 addpath(genpath('./ukf/')); % import from sub directories (installs the toolkit)
 
-addpath('./simulation/hemodynamic/');
-%addpath('./user_design/linear_testbench/');
-addpath('./user_design/hemodynamic/');
+% -- Toolkit Flags
 
-%==============================Plots=======================================
-
-Test_plots = 0; %flag
+periodic_plotting = 1;
+profiling_flag = 0;
+dynamic_uncertainty = 0;
 
 %%
-%============================== SIMULATION ==============================
-% ------------------------- Simulation Settings -------------------------
-% These are
-%x0_init = 8.777e+04; % True intial start
-c = 0.000750061683; % unit conversion 1 dyn/cm^2=0.0007750061 mmHg
-x0_init = 80/c;
+%==========================================================================
+%========================= User  System Setup =============================
+%==========================================================================
 
-meas_variance = 0.5;
+% ===================== Import User System Directory =====================
 
-Cylces = 3;
+addpath('./simulation/   /');
 
-% Measurement Time
-t_sim_start = 0.0;         % start time
-t_sim_end = Cylces * 0.8;  % end time
-dt_sim = 1/500;            % time between measurements
+% ======================== Measurement Simulation ========================
 
-% UKF prediction Time
-t_last_update = t_sim_start; % time at last update
-t_prior = 0.0;               % time at prior, this is updated in loop
-dtp = dt_sim*0.01;           % time per step in sigma predecition projection
+% -- Measurement Time
+t_sim_start =          % start time
+t_sim_end   =          % end time
+dt_sim      =          % time between measurements
 
-% -------------------------------- Sim --------------------------------
+tm = 
 
+% -- True Inital State
+x_init = 
 
+true_meas = 
 
-Rc_true = 1600;  % Silly
-Rd_true = 13000; %
-C_true = 2.5e-5; %
-
-cycle_time = 0.8;
-Q_dt = 1e-4;
-
-cycles_to_skip = 4;
-
-% additional arguments for hemo_pressure (alias of pressure_function)
-true_hemodynamic_state_argz = [Rc_true, Rd_true, C_true, cycle_time, Q_dt];
-
-% Generate true states
-[true_pressure_state, true_time_stamp] = true_hemodynamic_state(@pressure_function,  x0_init,  t_sim_start, dt_sim, t_sim_end,  true_hemodynamic_state_argz, cycles_to_skip);
-
-% Generate true measurements.  Returns also the new time series that accounts
-[tm_true_stamp, true_measurement] = true_hemodynamic_measurement(@hemodynamic_state_to_measurement, true_pressure_state, true_time_stamp);
-
-zm = noisy_measurements(true_measurement, meas_variance);
-
-tm = tm_true_stamp;
+% -- Noisy Measurements
+zm = 
 
 
-%%
-% ======================= SYSTEM DESIGN from USER =======================
-Pref  = 50;      %mmHg
-Cref  = (2e-5);  
-Rcref = 1500;
-Rdref = 15000;
+% ============================ USER UKF DESIGN ============================
 
+% STATE DESIGN
+
+% -- Parameter Initialization
+dmeas = [];
+A = [];
+p_init = [];
+
+p_init = 
 
 % -- State Vector
-x = [[               80/c ];...
-     [    log2(500/Rcref) ];...
-     [ log2(0.00065/Cref) ];...
-     [  log2(25000/Rdref) ]];
-
-% State Estimator variance
-P = [[ 8.0  0.0  0.0  0.0];...
-     [ 0.0  8.0  0.0  0.0];...
-     [ 0.0  0.0  8.0  0.0];...
-     [ 0.0  0.0  0.0  8.0]];
-   
-% Process Model Variance and Covariance Matrix
-process_model_function = @pressure_function;
-
-dt = dtp;
-Q = ([[(dt^7)/100, (dt^6)/60, (dt^5)/20, (dt^4)/8];...
-      [(dt^6)/60,  (dt^5)/20, (dt^4)/8,  (dt^3)/6];...
-      [(dt^5)/20,  (dt^4)*8,  (dt^3)/3,  (dt^2)/2];...
-      [(dt^4)/8,   (dt^3)/6,  (dt^2)/2,  (dt^1)]]);
-
-% State Function Model for State Estimator
-state_to_measurment_function = @hemodynamic_state_to_measurement;
-
-% State Function Model parameters (vargz for state_transition())
-state_transition_Vargz = [0.0 0.0 0.0 cycle_time Q_dt];
+x_user = {     zm(1) 'state';...
+               zm(2) 'state';...
+           p_init(1) 'parameter';...
+           p_init(2) 'parameter'};
+        
+% -- State Estimator Variance and Covariance Matrix
+P_user = 
 
 
-R = [0.005]; % For X meas only
+% PROCESS DESIGN
+
+% -- Process Model
+process_model_function__user = 
+
+% -- Process Model Forcast Time
+t_last_update =        % time at last update
+t_prior =              % time at prior, this is updated in loop
+dtp =                  % time per step in sigma predecition projection
+
+% -- Process Model Variance and Covariance Matrix
+Q_user = 
+
+% -- State Function Model parameters (vargz for state_transition())
+state_transition__vargz = 
 
 
-% --- Sigma Points tuning parameters ---
+% MEASUREMENT DESIGN
 
-alpha =  0.1;
-beta  =  2.0;
-kappa = -1.0; % prolly should be set to n-3, so -1
+% -- Measurement function
+get_measurement__user = 
+get_measurement__vargz = 
+
+% -- Measurement Variance and Covariance Matrix
+R_user = 
+
+% -- State to Measurement function
+meas_to_state__user = 
+meas_to_state__vargz = 
 
 
+% UKF PARAMETER DESIGN
 
+% -- Sigma Points tuning parameters
+alpha =      
+beta  =      
+kappa =  
+
+
+% === End of User Input ===
 
 %%
-%==============Making Measuments and comparing to True funtion=============
-
-%setting seed
-rng('default')
 
 
-if Test_plots == 1
-    figure
-    plot(x_True(1),x_True(3),'o')
-    hold on
-    %plot(y_True, x_True, 'k', 'LineWidth', 3)
-    plot(zm(:,1),zm(:,2), 'k', 'LineWidth', 3)
-    grid on
-    xlabel('Time (s)')
-    ylabel('Pressure (log world)')
-end
+%==========================================================================
+%================== >>> = UKF PARAMETER ESTIMATION = <<< ==================
+%==========================================================================
 
 
-%==========================Initialize Matrices=============================
+% ======================== Initialize Matrices ===========================
+x_real = [x_user{:,1}]';
+x_state_types = {x_user{:,2}};
+x_probability_distribution_types = {x_user{:,3}};
+
+sol = x_real;
+
+x_sys = real_to_log_state_transform(x_real', x_probability_distribution_types);
+
+x_sys = x_sys';
+
+P = P_user;
+Q = Q_user;
+R = R_user;
+
+process_model_function = process_model_function__user;
 
 % number of state vectors
-n = length(x);
+n = length( x_sys );
 
 % number of measured observations
 nmo = length(R);
 
 [sigmaPoints,weights,lambda,P_bar_xx,P_bar_hh] = initialize(n,alpha,kappa,nmo); % this should be broken up
-sol =x;
-
-
 
 % These are the weigths used in the uncented transform
 % They are static and never change
 [Wc,Wm] =  compute_weights(n,lambda,alpha,beta);
 
+
+
+
+
+param_mes = [];
+sol_K = [];
+
+
+tic_step__periodic_plotting = 0;
+tic_step__dynamic_uncertainty = 0;
+
+
+disp('  ');
+disp('    $$$$$$      $$$$$ ');
+disp('  $$$$$$$$$$  $$$$$$$$$ ');
+disp(' $$$$$$$$$$$$$$$$$$$$$$$$ ');
+disp('$$$    /\          /\  $$$ ');
+disp('$$$_  /  \__/\__  /  \_$$$ ');
+disp('$$$ \/          \/     $$$ ');
+disp(' $$$$$$$$$$$$$$$$$$$$$$$$ ');
+disp('  $$$$$$$$$$$$$$$$$$$$$$ ');
+disp('    $$$$$$$$$$$$$$$$$$ ');
+disp('      $$$$$$$$$$$$$$$ ');
+disp('        $$$$$$$$$$$$ ');
+disp('          $$$$$$$$ ');
+disp('           $$$$$$ ');
+disp('            $$$$ ');
+disp('             $$ ');
+disp('                ');
+disp('            $ ');
+disp('           $$$ ');
+disp('          $$$$$ ');
+disp('         $$$$$$$ ');
+disp('         $$$$$$$ ');
+disp('          $$$$$ ');
+disp('                 $ ');
+disp('                $$$ ');
+disp('               $$$$$ ');
+disp('              $$$$$$$ ');
+disp('              $$$$$$$ ');
+disp('               $$$$$ ');
+disp('  ');
+
+
+
+% ============================= Main Loop ================================
 for i = 1:(length(tm)-1)
+    if profiling_flag == 1
+      tic
+    end
     % --- PREDICT ---
     % Get time for prior ( which is the time of the next measurement )
     t_prior = tm(i+1); % this needs to be decoupled from sim
     
-    sigmaPoints = compute_sigma_points(n, lambda, x, P); % Checked
     
+    sigmaPoints = compute_sigma_points(n, lambda, x_sys, P); % Checked
+    if profiling_flag == 1
+      disp('sigmaPoints')
+      toc
+    end
     
+    % Unpack lognormal for forcast
+    sigmaPoint_real = log_to_real_state_transform(sigmaPoints, x_probability_distribution_types);
+    
+
+    if profiling_flag == 1
+      tic
+    end
     % Project sigma points using ODE solver
-    Sigmas_f = state_transition(process_model_function, state_transition_Vargz, sigmaPoints, t_last_update, dtp, t_prior); % Checked
+    % The state_transition function can take and state equation function making the code general
+    %
+    % process_model_function - handle for the state equation function
+    %                          must have the form: myStateEquFunction(t, y, argvz)
+    % sigmaPoints - this it the intial sigma points
+    Sigmas_forcasted = state_transition(process_model_function, state_transition__vargz, sigmaPoint_real, x_state_types, t_last_update, dtp, t_prior); % Checked
+    if profiling_flag == 1
+      disp('state_transition')
+      toc
+    end
     
+    % Repack lognormal variables
+    Sigmas_f = real_to_log_state_transform(Sigmas_forcasted, x_probability_distribution_types);
+    
+    if profiling_flag == 1
+      tic
+    end
     % _bar denotes that it came from unscentedTransform
     [ x_bar_xx, P_bar_xx ] =  unscented_transform(Wm,Wc, Sigmas_f, Q); % Checked
+    if profiling_flag == 1
+      disp('unscented_transform')
+      toc
+    end
     
+    if profiling_flag == 1
+      tic
+    end
     % Recompute NEW sigmas at the new predicted state
     Sigmas_x = compute_sigma_points(n,lambda,x_bar_xx',P_bar_xx);
-    
+    if profiling_flag == 1
+      disp('compute_sigma_points')
+      toc
+    end
     % --- UPDATE ---
     
+    if profiling_flag == 1
+      tic
+    end
     % _h denotes measurement version of prediction
-    %Sigmas_h = state_to_measurment(hemodynamic_state_to_measurement, Sigmas_x, 0);
-    Sigmas_h = hemodynamic_state_to_measurement(Sigmas_x,  0.0);
-    Sigmas_h = Sigmas_h';
+    [Sigmas_h, Sigma_h_types] = meas_to_state__user(Sigmas_x, x_state_types, meas_to_state__vargz);
     
+    
+    Sigmas_h = Sigmas_h';
+    if profiling_flag == 1
+      disp('hemodynamic_state_to_measurement')
+      toc
+    end
+    
+    if profiling_flag == 1
+      tic
+    end
     % computeMeasurementMeanAndCovariance_Pz is just a redundant copy of unscentedTransform
     [x_bar_hh, P_bar_hh] = unscented_transform(Wm,Wc, Sigmas_h, R);
     
@@ -182,9 +269,17 @@ for i = 1:(length(tm)-1)
     % This is where the magic happens ;)
     K = compute_kalman_gain(P_bar_xh, P_bar_hh);
     
+    sol_K = [sol_K, K];
+    
+    % Get measurement for user defined measurement function
+    [meas_real, meas_probability_distribution_types] = get_measurement__user(t_prior, x_bar_hh, sol, get_measurement__vargz);
+    
+    % Transform measurement into log world
+    meas = real_to_log_state_transform(meas_real, meas_probability_distribution_types);
+    
     % difference between the actual measurement and where the projected
     % state thinks what the measurement should have been
-    y = residual_y(zm(i), x_bar_hh);
+    y = residual_y(meas, x_bar_hh);
     
     % Uses the Kalman gain to adjust the system's covariance matrix
     %   This tells you the accuracy of the states
@@ -193,21 +288,95 @@ for i = 1:(length(tm)-1)
     % Uses the Kalman gain to adjust the system's state estimate
     %   This will be someplace between the uncented transform's project
     %   state and the measurement state
-    x = state_update(x_bar_xx,K,y); % wrong Sigmas where going in here!!!
+    x_sys = state_update(x_bar_xx,K,y); % wrong Sigmas where going in here!!!
     
+    x_real = log_to_real_state_transform(x_sys', x_probability_distribution_types);
     
-    sol = [sol,x];
+    sol = [sol, x_real'];
     
     % update the last update timestamp
     t_last_update = t_prior; % this needs to be decoupled from sim
+    if profiling_flag == 1
+      disp('last calcs')
+      toc
+    end
+    
+    Sigma_h_parameter_index = find(strcmp(Sigma_h_types, 'parameter') ==1);      % gets index of parameters
+    param_mes = [param_mes, meas_real(Sigma_h_parameter_index)];
+    
+    
+    % This is additional user defined functionality
+    
+    % periodic plotting
+    if (periodic_plotting == 1) && (tic_step__periodic_plotting < tm(i))
+      
+      % some plotting
+      state_index = find(strcmp(x_state_types, 'state') ==1);              % gets index of states
+      parameter_index = find(strcmp(x_state_types, 'parameter') ==1);      % gets index of parameters
+      constraint_index = find(strcmp(x_state_types, 'constraint') ==1);    % gets index of constraints
+      
+      hold off
+      subplot(1,2,1)
+      plot(tm(1:length(zm(state_index,:))), zm(state_index,:) ,'o','LineWidth',1)
+      hold on
+      plot(tm(1:length(sol(state_index,:))), sol(state_index,:) ,'-','LineWidth',2)
+      
+      subplot(1,2,2)
+      hold on
+      plot(tm(1:length(param_mes)), param_mes,'o','LineWidth',1)
+      
+      plot(tm(1:length(sol(parameter_index,:))), sol(parameter_index,:) ,'-','LineWidth',2)
+      
+      tic_step__periodic_plotting = tic_step__periodic_plotting + 0.25;
+      
+      pause(1)
+    end
+    
+    if (dynamic_uncertainty == 1)
+      if (tic_step__dynamic_uncertainty < tm(i))
+        tic_step__dynamic_uncertainty = tic_step__dynamic_uncertainty + 0.25;
+      end
+      
+      if (tic_step__dynamic_uncertainty == 3)
+        Q = [[ 0.0001    0.0       0.0       ];...
+             [ 0.0       0.0001    0.0       ];...
+             [ 0.0       0.0       0.000001  ]];
+      elseif (tic_step__dynamic_uncertainty == 6)
+        Q = [[ 0.0001    0.0       0.0        ];...
+             [ 0.0       0.0001    0.0        ];...
+             [ 0.0       0.0       0.0000001  ]];
+      elseif (tic_step__dynamic_uncertainty == 9)
+        Q = [[ 0.00001   0.0       0.0        ];...
+             [ 0.0       0.00001   0.0        ];...
+             [ 0.0       0.0       0.0000001  ]];
+      elseif (tic_step__dynamic_uncertainty == 9)
+        Q = [[ 0.000001  0.0       0.0        ];...
+             [ 0.0       0.000001  0.0        ];...
+             [ 0.0       0.0       0.0000001  ]];
+      elseif (tic_step__dynamic_uncertainty == 12)
+        Q = [[ 0.000001  0.0       0.0        ];...
+             [ 0.0       0.000001  0.0        ];...
+             [ 0.0       0.0       0.00000001 ]];
+      end
+    end
 end
 
 
 % some plotting
+state_index = find(strcmp(x_state_types, 'state') ==1);              % gets index of states
+parameter_index = find(strcmp(x_state_types, 'parameter') ==1);      % gets index of parameters
+constraint_index = find(strcmp(x_state_types, 'constraint') ==1);    % gets index of constraints
+
+
 hold off
-plot(tm, zm(:,1) ,'o','LineWidth',3)
+subplot(1,2,1)
+plot(tm(1:length(zm(state_index,:))), zm(state_index,:) ,'o','LineWidth',1)
 hold on
-plot(tm, sol(:) ,'-','LineWidth',4)
+plot(tm(1:length(sol(state_index,:))), sol(state_index,:) ,'-','LineWidth',2)
 
+subplot(1,2,2)
+plot(tm(1:length(sol(parameter_index,:))), sol(parameter_index,:) ,'-','LineWidth',2)
 
-
+%subplot(1,3,3)
+%[res_sys_state, res_sys_time] = true_hemodynamic_state(process_model_function_user,  x0_init,  t_sim_start, dt_sim, t_sim_end,  , 0)
+%plot(res_sys_time, res_sys_state(:,1)','-','LineWidth',2)
